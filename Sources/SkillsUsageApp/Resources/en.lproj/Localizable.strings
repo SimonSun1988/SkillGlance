@@ -1,0 +1,215 @@
+// SkillGlance interface and stored diagnostic translations.
+"%@ · 本機版本" = "%@ · Local build";
+"%@ 已匯入的來源檔案已不存在，保留舊摘要" = "Previously imported %@ source files are missing. Previous summaries are retained.";
+"%@ 有無法解析的完整紀錄行" = "%@ has complete log lines that could not be parsed.";
+"%@ 部分檔案無法讀取（%@）" = "Some %@ files could not be read (%@).";
+"%lld Skills" = "Skills: %lld";
+"%lld 個紀錄檔 · %@" = "Log files: %lld · %@";
+"%lld 個路徑連到同一來源，已合併計算。" = "Paths pointing to the same source: %lld. Counted once.";
+"%lld 次呼叫 · %lld 次確認讀取 · %lld 個上下文訊號" = "Calls: %lld · Confirmed reads: %lld · Context signals: %lld";
+"30 天" = "30 days";
+"7 天" = "7 days";
+"90 天" = "90 days";
+"AI 工具" = "AI tools";
+"Claude 紀錄來源未確認" = "Claude log origin is unverified";
+"Plugin 快取" = "Plugin cache";
+"Plugin 快取 · 狀態未確認" = "Plugin cache · unverified";
+"一般" = "General";
+"不適用" = "Not applicable";
+"仍有未歸屬紀錄，暫停評估" = "Unassigned records · paused";
+"使用紀錄" = "Usage history";
+"使用者安裝" = "User installed";
+"來源或證據不完整，暫停評估" = "Incomplete evidence · paused";
+"來源第 %lld 行" = "Source · line %lld";
+"保護中" = "Protected";
+"僅分析本機可讀的 Codex 與 Claude Desktop Code 紀錄。Claude 一般聊天、未同步到本機的 VM 紀錄及無法辨識的工具封裝不在完整覆蓋範圍。" = "Only locally readable Codex and Claude Desktop Code logs are analyzed. General Claude chats, VM logs not synced to this Mac, and unrecognized tool wrappers are not fully covered.";
+"僅在本機分析" = "On-device analysis";
+"全部" = "All time";
+"全部項目" = "All items";
+"加入專案" = "Add project";
+"加入專案資料夾" = "Add project folder";
+"匯入完成後可新增專案" = "Wait for the import to finish before adding a project.";
+"匯入完成後可移除掃描範圍" = "Wait for the import to finish before removing a scan location.";
+"匯入完成後可變更重要標記" = "Wait for the import to finish before changing important flags.";
+"匯入尚未完成，移除評估暫停" = "Import incomplete · removal assessment paused";
+"取消" = "Cancel";
+"取消重要標記" = "Unmark as important";
+"只盤點加入專案內的 .agents/skills、.claude/skills 與 .codex/skills。" = "Only .agents/skills, .claude/skills, and .codex/skills within added projects are inventoried.";
+"同一事件存在互相衝突的結果" = "Conflicting results exist for the same event.";
+"呼叫" = "Calls";
+"呼叫次數" = "Calls";
+"呼叫與讀取分開計算" = "Calls and reads counted separately";
+"在 Finder 中顯示" = "Show in Finder";
+"在 Finder 顯示" = "Show in Finder";
+"外觀" = "Appearance";
+"天數" = "Days";
+"失敗" = "Failed";
+"好" = "OK";
+"安裝來源" = "Installation source";
+"安裝狀態待確認" = "Installation unverified";
+"安裝範圍" = "Installation scope";
+"完成後才會以新統計取代舊統計，並重設 90 天觀察期。" = "Existing statistics are replaced only after the rebuild succeeds. The 90-day observation period will restart.";
+"完整" = "Full";
+"完整觀察 90 天，無使用訊號" = "90 days observed · no activity";
+"完整觀察後，才提出整理建議。" = "Cleanup suggestions after a full observation period.";
+"專案" = "Project";
+"專案 Skills" = "Project Skills";
+"對話" = "Chats";
+"尚無可歸屬紀錄" = "No attributable records yet";
+"尚無確認紀錄" = "No confirmed records";
+"工具" = "Tool";
+"工具格式覆蓋不完整" = "Some tool formats are unsupported.";
+"工具格式覆蓋不完整，移除評估暫停" = "Some tool formats are unsupported. Removal assessment is paused.";
+"已取消，保留已儲存摘要" = "Canceled. Saved summaries are retained.";
+"已啟用登入時自動啟動" = "Launch at login is enabled";
+"已安裝" = "Installed";
+"待確認" = "Needs review";
+"成功回傳" = "Returned successfully";
+"成功回傳不代表任務成功；讀取不代表已遵循指示。" = "A successful return does not prove task success. A read does not prove instructions were followed.";
+"所有 Skills" = "All Skills";
+"所有 Worktrees" = "All worktrees";
+"所有分析都在這台 Mac 上完成" = "All analysis happens on this Mac";
+"所有專案" = "All projects";
+"所有工具" = "All tools";
+"找不到可讀紀錄" = "No readable logs found";
+"掃描中，暫停評估" = "Scanning · assessment paused";
+"搜尋 Skills" = "Search Skills";
+"新加入的 Skills 需觀察 90 天；有資料缺漏時會暫停評估。" = "Newly discovered Skills require 90 days of observation. Assessment pauses if data is incomplete.";
+"明確操作仍納入概覽；安裝來源無法唯一對應時，不會歸入目前 Skills 的排行。" = "Explicit actions remain in the overview. Records without a unique installation match are excluded from current Skills rankings.";
+"更新完成" = "Up to date";
+"更新方式" = "Updates";
+"最後完成更新" = "Last completed update";
+"最近使用" = "Last used";
+"期間" = "Period";
+"未掃描" = "Not scanned";
+"未支援的相關讀取工具" = "A relevant read tool is unsupported.";
+"未歸屬" = "Unassigned";
+"未歸屬的歷史紀錄" = "Unassigned history";
+"未歸屬紀錄" = "Unassigned records";
+"未知" = "Unknown";
+"本機分析 · 最近 90 天" = "On-device · last 90 days";
+"本機可讀" = "Locally readable";
+"本機可讀紀錄" = "Locally readable logs";
+"查看資料來源與限制" = "View sources and limitations";
+"標記為重要" = "Mark as important";
+"啟動時更新，之後每小時一次" = "At launch, then every hour";
+"上下文載入" = "Loaded into context";
+"使用者指定與 AI 自行選用都會計入；依實際呼叫、讀取或明確載入紀錄計算。" = "User-requested and AI-selected Skills are both counted, based on recorded calls, reads, or explicit Skill loads.";
+"正在匯入中" = "An import is already running.";
+"歷史路徑／名稱關聯 · 未驗證當時版本" = "Historical path/name match · version unverified";
+"歷史項目" = "Historical items";
+"歷史項目 · 不在盤點範圍" = "Historical · outside inventory";
+"歸屬訊號" = "Attribution signal";
+"每個 Skill 的使用足跡，都在這裡。" = "See how your Skills are used.";
+"活躍 Skills" = "Active Skills";
+"準備匯入" = "Preparing import";
+"無法完成操作" = "Unable to complete the action";
+"無法解析部分讀取指令" = "Some read commands could not be parsed.";
+"無法變更登入時自動啟動：%@" = "Unable to change launch at login: %@";
+"無法開啟本機資料庫" = "Unable to open the local database.";
+"狀態" = "Status";
+"登入 Mac 後常駐選單列，不自動開啟統計視窗。" = "Start in the menu bar when you log in, without opening the statistics window.";
+"登入時自動啟動" = "Launch at login";
+"目前安裝" = "Installed now";
+"目前沒有已知匯入錯誤" = "No known import errors";
+"目前沒有移除建議" = "No removal suggestions yet";
+"目前沒有符合的 Skills" = "No matching Skills";
+"確認活躍對話" = "Active chats";
+"確認讀取" = "Confirmed reads";
+"移除建議" = "Removal suggestions";
+"移除建議僅供檢視；App 不會刪除 Skills。" = "Removal suggestions are for review. The app does not delete Skills.";
+"移除掃描範圍" = "Remove scan location";
+"移除掃描範圍，保留摘要" = "Remove scan location; retain summaries";
+"等待允許登入項目" = "Login item needs approval";
+"等待匯入完成，或調整搜尋條件。" = "Wait for the import to finish or adjust your search.";
+"等待首次匯入" = "Waiting for the first import";
+"系統／Plugin 管理" = "System / Plugin managed";
+"紀錄輪替、截斷或改寫：%@，觀察期已重設" = "Logs rotated, truncated, or rewritten for %@. The observation period has restarted.";
+"結束 SkillGlance" = "Quit SkillGlance";
+"結果未知" = "Result unknown";
+"統計資料" = "Statistics";
+"繼續" = "Resume";
+"自動更新已暫停" = "Automatic updates paused";
+"觀察未滿 90 天" = "Observing · under 90 days";
+"設定" = "Settings";
+"詳細資訊" = "Details";
+"讀取" = "Reads";
+"讀取不代表遵循指示；成功回傳不代表任務成功。" = "A read does not prove instructions were followed. A successful return does not prove task success.";
+"讀取嘗試" = "Read attempt";
+"讀取範圍：%@" = "Read scope: %@";
+"資料位置" = "Data location";
+"資料來源" = "Data sources";
+"資料品質" = "Data quality";
+"資料庫只儲存事件摘要、來源定位與讀取進度，不儲存對話原文或工具輸出。" = "The database stores event summaries, source locations, and read checkpoints, without conversation text or tool output.";
+"跟隨 macOS" = "Follow macOS";
+"近 90 天有使用或嘗試訊號" = "Activity within 90 days";
+"選擇 Skill" = "Select a Skill";
+"部分" = "Partial";
+"部分工具封裝不在支援範圍" = "Some tool wrappers are unsupported.";
+"部分紀錄無法唯一對應安裝來源" = "Some records have no unique installation match.";
+"部分證據待確認" = "Some evidence needs review";
+"部分證據待確認 · 移除評估暫停" = "Evidence needs review · removal assessment paused";
+"部分讀取結果無法確認，移除評估暫停" = "Some read results are unconfirmed. Removal assessment is paused.";
+"重建未完成：部分來源不存在、無法讀取或格式損壞。舊統計已保留。" = "Rebuild incomplete: some sources are missing, unreadable, or malformed. Previous statistics are retained.";
+"重新建立" = "Rebuild";
+"重新建立統計" = "Rebuild statistics";
+"重新建立統計？" = "Rebuild statistics?";
+"重新整理" = "Refresh";
+"重新讀取本機紀錄，保留重要標記與專案設定。觀察期會重新計算；來源紀錄不會變更。" = "Re-read local logs and retain important flags and project settings. The observation period restarts; source logs stay unchanged.";
+"重要標記" = "Important flag";
+"開啟系統設定" = "Open System Settings";
+"開啟統計" = "Open statistics";
+"開始觀察" = "First observed";
+"關於" = "About";
+"隱私與儲存" = "Privacy and storage";
+"／最近 90 天" = "/ last 90 days";
+
+"尚未偵測到本機紀錄" = "No local records detected";
+
+"來源格式或證據不完整" = "Source format or evidence is incomplete.";
+
+"部分來源檔案無法讀取" = "Some source files could not be read.";
+
+"部分 Skill 讀取工具尚未支援" = "Some Skill-reading tools are not supported yet.";
+
+"已匯入的來源目前無法讀取" = "A previously imported source is no longer readable.";
+
+"讀取請求，結果未能配對" = "Read request; result could not be correlated.";
+
+"已找到 Skill 讀取請求，結果未能配對" = "Skill read requests found; results could not be correlated.";
+
+"僅有截短紀錄，無法確認 Skill 讀取證據" = "Only truncated records are available; Skill read evidence cannot be verified.";
+
+"Cursor 資料庫類型不受支援" = "The Cursor database file type is not supported.";
+
+"無法讀取 Cursor 資料庫" = "The Cursor database could not be read.";
+
+"Cursor 紀錄超過本次掃描上限" = "Cursor records exceed this scan’s limits.";
+
+"Cursor 技能紀錄缺少有效時間或識別碼" = "Cursor Skill records lack a valid timestamp or identifier.";
+
+"Cursor 紀錄缺少專案歸屬" = "Cursor records have no project attribution.";
+
+"Cursor 技能紀錄版本不受支援" = "This Cursor Skill record version is not supported.";
+
+"Cursor 技能讀取結果尚無法確認" = "Cursor Skill read results cannot yet be verified.";
+
+"Cursor 相同工具識別碼的紀錄互相衝突" = "Cursor records with the same tool identifier conflict.";
+
+"Cursor 資料庫無法讀取或格式不受支援" = "The Cursor database is unreadable or its format is not supported.";
+
+"未偵測" = "Not detected";
+
+"在 Finder 顯示來源" = "Show source in Finder";
+
+"Claude Code 本機對話紀錄" = "Claude Code local session records";
+
+"App／IDE／CLI 的 transcript_full 紀錄" = "App, IDE and CLI full transcripts";
+
+"Cursor 本機 SQLite 紀錄" = "Cursor local SQLite records";
+
+"只盤點加入專案內各工具約定的 Skills 目錄，不掃描整台電腦。" = "Only conventional Skills folders within added projects are inventoried, not the whole computer.";
+
+"僅分析本機可讀紀錄。Antigravity 歷史紀錄只能確認讀取請求，無法配對結果時不增加確認讀取；未知格式與來源缺漏會暫停移除評估。" = "Only locally readable records are analyzed. Antigravity history proves read requests only; unmatched results do not add confirmed reads. Unknown formats and missing sources pause removal assessment.";
+
+"部分工具來源證據不完整，請查看資料來源" = "Some tool sources have incomplete evidence. Check Data sources.";

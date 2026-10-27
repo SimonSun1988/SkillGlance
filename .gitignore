@@ -1,0 +1,12 @@
+.DS_Store
+.taste-skill/
+.build/
+dist/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.env
+.env.*
+*.pem
+*.p12
+*.key
