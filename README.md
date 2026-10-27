@@ -93,6 +93,22 @@ GitHub Pages 使用預設網域，未設定 Custom domain。部署方式：
 
 Workflow 僅發布 `site/`；App 安裝包則放在 GitHub Releases。
 
+## 搜尋與回答系統
+
+三語頁面各自提供 canonical、互相對應的 hreflang、分享預覽圖，以及與頁面內容一致的 `WebPage`／`SoftwareApplication` JSON-LD。產品介紹、支援範圍與問答直接寫在 HTML，停用 JavaScript 也能讀取。示範統計區塊使用 `data-nosnippet`，避免 Google 將示範數字當成搜尋摘要。
+
+[Sitemap](https://simonsun1988.github.io/SkillGlance/sitemap.xml) 列出三個正式網址及語言對應。本站位於 `/SkillGlance/` 子路徑，無法透過此專案設定網域根目錄的 `robots.txt`；子目錄中的同名檔案不能取代根目錄設定。目前根目錄回傳 404，不代表禁止爬取。
+
+部署前可執行以下檢查；GitHub Pages workflow 也會執行：
+
+```sh
+python3 scripts/check-site.py
+```
+
+結構化資料沒有虛構評分、評論或價格。Schema.org 語意驗證通過，不等於符合 Google App 複合式搜尋結果的資格；目前未提供該功能要求的價格與評分／評論欄位。
+
+這些設定協助系統理解內容，不保證收錄、排名、複合式搜尋結果或 AI 引用。Google Search Console 的收錄狀態、sitemap 提交與成效追蹤，仍需網站所有權驗證；可使用本站完整網址作為 URL-prefix property。
+
 ## 問題回報
 
 請透過 [GitHub Issues](https://github.com/SimonSun1988/SkillGlance/issues) 回報問題，附上 App 版本、macOS 版本、AI 工具名稱及去識別化後的錯誤訊息。請勿附上原始對話紀錄、憑證或統計資料庫。

@@ -3,14 +3,29 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-Zkid75Z/LdxGMFJn13mX7qldo7Ud0NvNuOd1t4rs0TY='; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="color-scheme" content="light">
-  <title>SkillGlance: AI Skills usage for macOS</title>
-  <meta name="description" content="A native macOS menu bar app for Skills evidence across Codex, Claude Desktop Code, Claude Code, Gemini CLI, Cursor and Antigravity. Offline analysis with clear evidence limits.">
-  <meta property="og:title" content="SkillGlance: AI Skills usage for macOS">
-  <meta property="og:description" content="A native macOS menu bar app for Skills evidence across Codex, Claude Desktop Code, Claude Code, Gemini CLI, Cursor and Antigravity. Offline analysis with clear evidence limits.">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <title>SkillGlance — AI Skills Usage Tracker for macOS</title>
+  <meta name="description" content="Track local AI Skills usage across Codex, Claude Code, Gemini CLI, Cursor and Antigravity on macOS. Offline statistics in English and Chinese.">
+  <meta property="og:title" content="SkillGlance — AI Skills Usage Tracker for macOS">
+  <meta property="og:description" content="Track local AI Skills usage across Codex, Claude Code, Gemini CLI, Cursor and Antigravity on macOS. Offline statistics in English and Chinese.">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="SkillGlance">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="zh_TW">
+  <meta property="og:locale:alternate" content="zh_CN">
+  <meta property="og:image" content="https://simonsun1988.github.io/SkillGlance/assets/social-card.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="SkillGlance: AI Skills usage statistics on your Mac, with local analysis.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="SkillGlance — AI Skills Usage Tracker for macOS">
+  <meta name="twitter:description" content="Track local AI Skills usage across Codex, Claude Code, Gemini CLI, Cursor and Antigravity on macOS. Offline statistics in English and Chinese.">
+  <meta name="twitter:image" content="https://simonsun1988.github.io/SkillGlance/assets/social-card.jpg">
+  <meta name="twitter:image:alt" content="SkillGlance: AI Skills usage statistics on your Mac, with local analysis.">
   <meta property="og:url" content="https://simonsun1988.github.io/SkillGlance/">
   <link rel="canonical" href="https://simonsun1988.github.io/SkillGlance/">
   <link rel="alternate" hreflang="en" href="https://simonsun1988.github.io/SkillGlance/">
@@ -20,6 +35,7 @@
   <link rel="icon" type="image/png" href="assets/mark.png">
   <link rel="stylesheet" href="assets/site.css">
   <script src="assets/site.js" defer></script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://simonsun1988.github.io/SkillGlance/#webpage","url":"https://simonsun1988.github.io/SkillGlance/","name":"SkillGlance — AI Skills Usage Tracker for macOS","description":"Track local AI Skills usage across Codex, Claude Code, Gemini CLI, Cursor and Antigravity on macOS. Offline statistics in English and Chinese.","inLanguage":"en","mainEntity":{"@id":"https://simonsun1988.github.io/SkillGlance/#app"}},{"@type":"SoftwareApplication","@id":"https://simonsun1988.github.io/SkillGlance/#app","name":"SkillGlance","url":"https://simonsun1988.github.io/SkillGlance/","description":"Track local AI Skills usage across Codex, Claude Code, Gemini CLI, Cursor and Antigravity on macOS. Offline statistics in English and Chinese.","softwareVersion":"0.2.0","operatingSystem":"macOS 14 or later","processorRequirements":"Apple Silicon (arm64)","applicationCategory":"DeveloperApplication","inLanguage":["en","zh-Hans","zh-Hant"],"downloadUrl":"https://github.com/SimonSun1988/SkillGlance/releases/download/v0.2.0/SkillGlance-0.2.0-arm64.dmg","releaseNotes":"https://github.com/SimonSun1988/SkillGlance/releases/tag/v0.2.0","image":"https://simonsun1988.github.io/SkillGlance/assets/social-card.jpg","sameAs":"https://github.com/SimonSun1988/SkillGlance"}]}</script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -33,13 +49,13 @@
 <main id="main">
   <section class="hero wrap" aria-labelledby="hero-title">
     <div class="hero-copy">
-      <h1 id="hero-title"><span class="title-line">Your skills.</span><span class="title-line">In clear view.</span></h1>
-      <p>A macOS menu bar app that brings local Skills evidence from six AI tools into one view.</p>
+      <h1 id="hero-title"><span class="title-line">Skills usage.</span><span class="title-line">In clear view.</span></h1>
+      <p>SkillGlance is a macOS menu bar app for local AI Skills usage statistics across six AI tools.</p>
       <div class="hero-actions"><a class="button" href="#download">Download for Mac</a><a class="text-link" href="https://github.com/SimonSun1988/SkillGlance">View source</a></div>
       <p class="compatibility">For Apple Silicon. Requires macOS 14 or later.</p>
     </div>
     <figure class="hero-visual">
-      <div data-ui id="usage-preview" data-calls-label="Calls" data-reads-label="Confirmed reads" data-unknown-label="Unknown reads" data-default-note="Unknown reads are recorded requests without a confirmed result. They are not confirmed reads or confirmed active chats." data-antigravity-note="Antigravity: read requests only. Full transcripts expose no result IDs; these requests remain unknown and do not count as confirmed reads or confirmed active chats.">
+      <div data-ui data-nosnippet id="usage-preview" data-calls-label="Calls" data-reads-label="Confirmed reads" data-unknown-label="Unknown reads" data-default-note="Unknown reads are recorded requests without a confirmed result. They are not confirmed reads or confirmed active chats." data-antigravity-note="Antigravity: read requests only. Full transcripts expose no result IDs; these requests remain unknown and do not count as confirmed reads or confirmed active chats.">
         <div class="ui-top"><span class="ui-brand"><img src="assets/mark.png" width="20" height="20" alt="" class="ui-logo">SkillGlance</span><span class="ui-time">Example data</span></div>
         <div class="ui-content">
           <div class="detail-heading"><div class="ui-title">All Skills</div><span class="ui-time">Last 90 days</span></div>
@@ -56,7 +72,7 @@
   </section>
   <section class="glance section wrap" id="features" aria-labelledby="glance-title">
     <div class="menu-stage">
-      <div class="menu-preview" data-ui>
+      <div class="menu-preview" data-ui data-nosnippet>
         <div class="menu-title"><span class="ui-brand"><img src="assets/mark.png" width="20" height="20" alt="" class="ui-logo">SkillGlance</span><span class="ui-time">Example data</span></div>
         <div class="ui-stats"><div><span>Calls</span><strong>21</strong></div><div><span>Reads</span><strong>55</strong></div><div><span>Unknown reads</span><strong>6</strong></div></div>
         <div class="menu-status"><span>Last 90 days</span><span>Chats</span></div>
@@ -69,7 +85,7 @@
   <section class="evidence section wrap" id="evidence" aria-labelledby="evidence-title">
     <div class="section-copy"><h2 id="evidence-title">Behind every count,<br>a source.</h2><p>A name in a conversation is not proof of use. SkillGlance preserves explicit calls, confirmed reads and requests whose result is unknown.</p><ul class="evidence-notes"><li>Keep success, failure and unknown results visible. A recorded request is not proof that content was loaded.</li><li>Filter by tool, project, worktree or period without changing the underlying record.</li><li>Mark important Skills as protected. Removal suggestions require a full 90-day observation period and complete evidence.</li></ul></div>
     <div class="evidence-stage">
-      <div data-ui>
+      <div data-ui data-nosnippet>
         <div class="ui-top"><span class="ui-brand">Skill details</span><span class="ui-time">Example data</span></div>
         <div class="ui-content">
           <div class="detail-heading"><strong class="ui-title">frontend-design</strong><span class="star" role="img" aria-label="Important Skill"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m12 2 3 6.5 7 .9-5.1 5 .9 7-5.8-3.2L6.2 21l.9-6.6L2 9.4l7-.9Z" fill="currentColor"/></svg></span></div>
@@ -86,7 +102,7 @@
   <section class="privacy" id="privacy" aria-labelledby="privacy-title">
     <div class="privacy-inner wrap">
       <div class="section-copy"><h2 id="privacy-title">Your Mac.<br>Your records.</h2><p>The App reads local records and keeps its analysis on your Mac. No account, telemetry or upload. No hooks or tool configuration changes.</p><div class="privacy-facts"><p><strong>Local storage</strong>Stores event summaries, source locations and result states, not full conversations or tool output.</p><p><strong>You stay in control</strong>Choose project scan folders. The App suggests what to review; it does not delete Skills.</p></div></div>
-      <div data-ui class="sources-preview">
+      <div data-ui data-nosnippet class="sources-preview">
         <div class="ui-top"><span class="ui-brand">Data sources</span><span class="ui-time">Example data</span></div>
         <div class="ui-content">
           <div class="ui-subtitle">Six sources, with different evidence limits</div>
@@ -97,12 +113,12 @@
       </div>
     </div>
   </section>
-  <section class="faq section wrap" id="questions" aria-labelledby="faq-title"><div class="faq-intro"><h2 id="faq-title">Good to know</h2><p>What the App can see, what it counts, and what it leaves to you.</p></div><div class="faq-list"><details open><summary>Which AI tools are supported?</summary><p>Codex, Claude Desktop Code, Claude Code (CLI family), Gemini CLI, Cursor and Antigravity. Coverage depends on locally readable records and supported formats. Claude general chat is outside this scope.</p></details><details><summary>Does it count Skills I select myself?</summary><p>Yes. Both user-selected and AI-selected Skills count when a call or content load can be confirmed. Mentioning a Skill name alone does not count as successful use.</p></details><details><summary>Why are calls and reads separate?</summary><p>They describe different evidence. A Skill call can also load instructions, while a direct content load may have no separate call. Adding the two can double-count the same activity.</p></details><details><summary>What can Antigravity evidence confirm?</summary><p>Only explicit Skill-file read requests in full transcripts. These records do not provide paired call or result IDs, so outcomes stay unknown. They do not increase confirmed-read or confirmed-active-chat counts; the App does not infer full success statistics.</p></details><details><summary>Are all Cursor versions supported?</summary><p>Cursor support covers a verified internal SQLite format (v3 records and read_file_v2). Success, error and unknown results stay separate. Unrecognized versions, missing records or inaccessible databases mean incomplete evidence, not zero usage.</p></details><details><summary>Will SkillGlance delete my Skills?</summary><p>No. The current version provides suggestions and Finder navigation. A candidate needs a full 90-day observation period and complete evidence. Important and managed Skills remain protected.</p></details><details><summary>What stays on my Mac?</summary><p>Event summaries, source locations, scan progress, project folders and important flags. The App does not store complete conversations or tool output, and does not upload your records.</p></details><details><summary>Which Macs and languages does it support?</summary><p>The current build targets Apple Silicon and declares macOS 14 as the minimum. It has only been tested on the development Mac running macOS 27.0.1. The App includes English, Simplified Chinese and Traditional Chinese, selected through macOS language preferences.</p></details><details><summary>How do I install the App?</summary><p>Open the DMG, drag SkillGlance into Applications, then open it from Applications. Version 0.2.0 is an ad-hoc signed test release and has not completed Apple notarization.</p></details></div></section>
+  <section class="faq section wrap" id="questions" aria-labelledby="faq-title"><div class="faq-intro"><h2 id="faq-title">Good to know</h2><p>What the App can see, what it counts, and what it leaves to you.</p></div><div class="faq-list"><details open><summary>What is SkillGlance?</summary><p>SkillGlance is a macOS menu bar app that summarizes local AI Skills usage across six tools. It separates explicit calls, confirmed file reads and requests with unknown results, while keeping records on your Mac.</p></details><details><summary>Which AI tools are supported?</summary><p>Codex, Claude Desktop Code, Claude Code (CLI family), Gemini CLI, Cursor and Antigravity. Coverage depends on locally readable records and supported formats. Claude general chat is outside this scope.</p></details><details><summary>Does it count Skills I select myself?</summary><p>Yes. Both user-selected and AI-selected Skills count when a call or content load can be confirmed. Mentioning a Skill name alone does not count as successful use.</p></details><details><summary>Why are calls and reads separate?</summary><p>They describe different evidence. A Skill call can also load instructions, while a direct content load may have no separate call. Adding the two can double-count the same activity.</p></details><details><summary>What can Antigravity evidence confirm?</summary><p>Only explicit Skill-file read requests in full transcripts. These records do not provide paired call or result IDs, so outcomes stay unknown. They do not increase confirmed-read or confirmed-active-chat counts; the App does not infer full success statistics.</p></details><details><summary>Are all Cursor versions supported?</summary><p>Cursor support covers a verified internal SQLite format (v3 records and read_file_v2). Success, error and unknown results stay separate. Unrecognized versions, missing records or inaccessible databases mean incomplete evidence, not zero usage.</p></details><details><summary>Will SkillGlance delete my Skills?</summary><p>No. The current version provides suggestions and Finder navigation. A candidate needs a full 90-day observation period and complete evidence. Important and managed Skills remain protected.</p></details><details><summary>What stays on my Mac?</summary><p>Event summaries, source locations, scan progress, project folders and important flags. The App does not store complete conversations or tool output, and does not upload your records.</p></details><details><summary>Which Macs and languages does it support?</summary><p>The current build targets Apple Silicon and declares macOS 14 as the minimum. It has only been tested on the development Mac running macOS 27.0.1. The App includes English, Simplified Chinese and Traditional Chinese, selected through macOS language preferences.</p></details><details><summary>How do I install the App?</summary><p>Open the DMG, drag SkillGlance into Applications, then open it from Applications. Version 0.2.0 is an ad-hoc signed test release and has not completed Apple notarization.</p></details></div></section>
   <section class="download section wrap" id="download" aria-labelledby="download-heading">
     <div class="download-copy"><h2 id="download-heading">Take a closer look.<br>On your Mac.</h2><p>Version 0.2.0 is available as a test release. Download the DMG installer or read the release notes on GitHub Releases.</p><p class="install-note">To install: open the DMG, then drag SkillGlance into Applications. Open the App from Applications.</p></div>
     <div class="download-info"><div class="download-title"><span class="brand"><span class="brand-icon"><img src="assets/mark.png" width="27" height="27" alt=""></span>SkillGlance</span></div><dl><div><dt>Build</dt><dd>0.2.0</dd></div><div><dt>Architecture</dt><dd>Apple Silicon (arm64)</dd></div><div><dt>Minimum system</dt><dd>macOS 14</dd></div><div><dt>Languages</dt><dd>English, 简中, 繁中</dd></div><div><dt>Distribution</dt><dd>Pre-release</dd></div></dl><a class="button" href="https://github.com/SimonSun1988/SkillGlance/releases/download/v0.2.0/SkillGlance-0.2.0-arm64.dmg">Download 0.2.0 for Mac</a><p class="release-note"><a href="https://github.com/SimonSun1988/SkillGlance/releases/download/v0.2.0/SkillGlance-0.2.0-arm64.dmg.sha256">SHA-256 checksum</a> · <a href="https://github.com/SimonSun1988/SkillGlance/releases/tag/v0.2.0">Release notes</a></p><p class="release-note">This test release is ad-hoc signed and has not completed Apple notarization. macOS may display a security warning when opening the App.</p></div>
   </section>
 </main>
-<footer class="site-footer wrap"><a class="brand" href="#main"><span class="brand-icon"><img src="assets/mark.png" width="27" height="27" alt=""></span>SkillGlance</a><p>A clearer view of your Skills.<br>© 2026 SkillGlance</p><nav class="footer-links" aria-label="Project"><a href="https://github.com/SimonSun1988/SkillGlance">GitHub</a><a href="https://github.com/SimonSun1988/SkillGlance/issues">Report an issue</a><a href="#privacy">App privacy</a></nav></footer>
+<footer class="site-footer wrap"><a class="brand" href="#main"><span class="brand-icon"><img src="assets/mark.png" width="27" height="27" alt=""></span>SkillGlance</a><p>A clearer view of your Skills.<br>© 2026 SkillGlance</p><nav class="footer-links" aria-label="Project"><a href="https://github.com/SimonSun1988/SkillGlance">GitHub</a><a href="https://github.com/SimonSun1988/SkillGlance/issues">Report an issue</a><a href="#privacy">App privacy</a><a href="sitemap.xml">Sitemap</a></nav></footer>
 </body>
 </html>

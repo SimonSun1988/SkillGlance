@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### 官網
+
+- 調整三語搜尋標題與摘要，新增 sitemap、分享預覽圖及產品結構化資料。
+- 補上產品定義問答，保留不需 JavaScript 即可讀取的內容，並將示範統計排除於 Google 搜尋摘要。
+- 加入部署前的靜態網站檢查，驗證多語網址、JSON-LD 與 CSP 雜湊。
+
 ## [0.2.0] - 2026-10-28
 
 此版本為測試版（Pre-release），適用於 Apple Silicon Mac。
