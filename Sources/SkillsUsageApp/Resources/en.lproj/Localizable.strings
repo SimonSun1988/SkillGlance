@@ -22,7 +22,6 @@
 "來源或證據不完整，暫停評估" = "Incomplete evidence · paused";
 "來源第 %lld 行" = "Source · line %lld";
 "保護中" = "Protected";
-"僅分析本機可讀的 Codex 與 Claude Desktop Code 紀錄。Claude 一般聊天、未同步到本機的 VM 紀錄及無法辨識的工具封裝不在完整覆蓋範圍。" = "Only locally readable Codex and Claude Desktop Code logs are analyzed. General Claude chats, VM logs not synced to this Mac, and unrecognized tool wrappers are not fully covered.";
 "僅在本機分析" = "On-device analysis";
 "全部" = "All time";
 "全部項目" = "All items";
@@ -34,7 +33,6 @@
 "匯入尚未完成，移除評估暫停" = "Import incomplete · removal assessment paused";
 "取消" = "Cancel";
 "取消重要標記" = "Unmark as important";
-"只盤點加入專案內的 .agents/skills、.claude/skills 與 .codex/skills。" = "Only .agents/skills, .claude/skills, and .codex/skills within added projects are inventoried.";
 "同一事件存在互相衝突的結果" = "Conflicting results exist for the same event.";
 "呼叫" = "Calls";
 "呼叫次數" = "Calls";

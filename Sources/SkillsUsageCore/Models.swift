@@ -26,7 +26,6 @@ public struct Skill: Codable, Identifiable, Sendable, Hashable {
   public var installed: Bool
   public var important = false
   public var observedAt: Date
-  public var lastSeen: Date
   public init(_ item: DiscoveredSkill, now: Date) {
     id = stableID(item.path)
     name = item.name
@@ -37,7 +36,6 @@ public struct Skill: Codable, Identifiable, Sendable, Hashable {
     cacheOnly = item.cacheOnly
     installed = true
     observedAt = now
-    lastSeen = now
   }
 }
 public struct UsageEvent: Codable, Identifiable, Sendable, Hashable {

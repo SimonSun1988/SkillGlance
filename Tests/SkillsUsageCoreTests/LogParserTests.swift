@@ -32,7 +32,6 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
 }
 
 @Test func userRequestedAndAIToolLoadedSkillsBothContributeUsage() throws {
-  var parser = LogParser()
   var state = ParseState()
   let skill = fixtureSkill()
   let command: [String: Any] = [
@@ -40,26 +39,26 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
     "message": ["role": "user", "content": "<command-name>/clean-code</command-name>"],
   ]
   #expect(
-    parser.consume(
+    LogParser.consume(
       command, platform: .claudeDesktop, source: "f", line: 1,
       state: &state, catalog: [skill]
     ).isEmpty)
-  var events = parser.consume(
+  var events = LogParser.consume(
     skillContextRecord(skill.path), platform: .claudeDesktop,
     source: "f", line: 2, state: &state, catalog: [skill])
   let call = try parse(
     #"{"entrypoint":"claude-desktop","message":{"content":[{"type":"tool_use","name":"Skill","id":"auto","input":{"skill":"clean-code"}}]}}"#
   )
-  events += parser.consume(
+  events += LogParser.consume(
     call, platform: .claudeDesktop, source: "f", line: 3, state: &state, catalog: [skill])
   let result = try parse(
     #"{"entrypoint":"claude-desktop","message":{"content":[{"type":"tool_result","tool_use_id":"auto","is_error":false,"content":"loaded"}]}}"#
   )
-  events += parser.consume(
+  events += LogParser.consume(
     result, platform: .claudeDesktop, source: "f", line: 4, state: &state, catalog: [skill])
   var automaticBody = skillContextRecord(skill.path, id: "77777777-7777-4777-8777-777777777777")
   automaticBody["sourceToolUseID"] = "auto"
-  events += parser.consume(
+  events += LogParser.consume(
     automaticBody, platform: .claudeDesktop, source: "f", line: 5,
     state: &state, catalog: [skill])
   let unique = Dictionary(events.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
@@ -92,10 +91,9 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
     ],
   ]
   for object in [typed, cli, invalidID, empty, relative] {
-    var parser = LogParser()
     var state = ParseState()
     #expect(
-      parser.consume(
+      LogParser.consume(
         object, platform: .claudeDesktop, source: "f", line: 1,
         state: &state, catalog: [skill]
       ).isEmpty)
@@ -104,14 +102,13 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
 
 @Test func codexCountsReadsWithOrWithoutAUserSkillRequest() throws {
   for userRequested in [false, true] {
-    var parser = LogParser()
     var state = ParseState()
     if userRequested {
       let request = try parse(
         #"{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"$clean-code"}]}}"#
       )
       #expect(
-        parser.consume(
+        LogParser.consume(
           request, platform: .codex, source: "f", line: 1,
           state: &state, catalog: [fixtureSkill()]
         ).isEmpty)
@@ -119,23 +116,22 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
     let call = try parse(
       #"{"type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"read","arguments":"{\"cmd\":\"cat /skills/clean-code/SKILL.md\"}"}}"#
     )
-    _ = parser.consume(
+    _ = LogParser.consume(
       call, platform: .codex, source: "f", line: 2, state: &state, catalog: [fixtureSkill()])
     let result = try parse(
       #"{"type":"response_item","payload":{"type":"function_call_output","call_id":"read","output":"Process exited with code 0\nOutput:\n# Skill instructions"}}"#
     )
-    let events = parser.consume(
+    let events = LogParser.consume(
       result, platform: .codex, source: "f", line: 3, state: &state, catalog: [fixtureSkill()])
     #expect(UsageMetrics.summary(events).reads == 1)
   }
 }
 @Test func desktopSkillCorrelatesFailureAndExcludesCLI() throws {
-  var parser = LogParser()
   var state = ParseState()
   let call = try parse(
     #"{"type":"assistant","sessionId":"s","entrypoint":"claude-desktop","timestamp":"2026-10-27T01:00:00.000Z","message":{"content":[{"type":"tool_use","name":"Skill","id":"c","input":{"skill":"clean-code"}}]}}"#
   )
-  let attempts = parser.consume(
+  let attempts = LogParser.consume(
     call, platform: .claudeDesktop, source: "file", line: 1, state: &state,
     catalog: [fixtureSkill()])
   #expect(attempts.count == 1)
@@ -143,7 +139,7 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
   let result = try parse(
     #"{"type":"user","entrypoint":"claude-desktop","message":{"content":[{"type":"tool_result","tool_use_id":"c","is_error":true,"content":"failed"}]}}"#
   )
-  let events = parser.consume(
+  let events = LogParser.consume(
     result, platform: .claudeDesktop, source: "file", line: 2, state: &state,
     catalog: [fixtureSkill()])
   #expect(events.first?.outcome == .failure)
@@ -151,13 +147,12 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
   var cli = call
   cli["entrypoint"] = "cli"
   #expect(
-    parser.consume(
+    LogParser.consume(
       cli, platform: .claudeDesktop, source: "file", line: 3, state: &state,
       catalog: [fixtureSkill()]
     ).isEmpty)
 }
 @Test func codexReadNeedsReturnedContentAndMentionsDoNotCount() throws {
-  var parser = LogParser()
   var state = ParseState()
   let call: [String: Any] = [
     "timestamp": "2026-10-27T01:00:00.000Z", "type": "response_item",
@@ -166,7 +161,7 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
       "arguments": #"{"cmd":"cat /skills/clean-code/SKILL.md"}"#,
     ],
   ]
-  let attempt = parser.consume(
+  let attempt = LogParser.consume(
     call, platform: .codex, source: "file", line: 1, state: &state, catalog: [fixtureSkill()])
   #expect(attempt.count == 1)
   #expect(attempt.first?.confirmed == false)
@@ -177,7 +172,7 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
       "output": "Process exited with code 0\nOutput:\n# Clean code\nUseful instructions",
     ],
   ]
-  let loaded = parser.consume(
+  let loaded = LogParser.consume(
     result, platform: .codex, source: "file", line: 2, state: &state, catalog: [fixtureSkill()])
   #expect(loaded.first?.confirmed == true)
   let mention: [String: Any] = [
@@ -188,25 +183,23 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
     ],
   ]
   #expect(
-    parser.consume(
+    LogParser.consume(
       mention, platform: .codex, source: "file", line: 3, state: &state, catalog: [fixtureSkill()]
     ).isEmpty)
 }
 @Test func desktopMetadataAloneDoesNotOverrideExplicitCLI() throws {
-  var parser = LogParser()
   var state = ParseState()
   state.desktop = true
   let call = try parse(
     #"{"entrypoint":"cli","message":{"content":[{"type":"tool_use","name":"Skill","id":"x","input":{"skill":"clean-code"}}]}}"#
   )
   #expect(
-    parser.consume(
+    LogParser.consume(
       call, platform: .claudeDesktop, source: "file", line: 1, state: &state,
       catalog: [fixtureSkill()]
     ).isEmpty)
 }
 @Test func completedWrapperWithEmptyOutputIsNotLoaded() throws {
-  var parser = LogParser()
   var state = ParseState()
   let call: [String: Any] = [
     "type": "response_item",
@@ -215,7 +208,7 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
       "arguments": #"{"cmd":"cat /skills/clean-code/SKILL.md"}"#,
     ],
   ]
-  _ = parser.consume(
+  _ = LogParser.consume(
     call, platform: .codex, source: "file", line: 1, state: &state, catalog: [fixtureSkill()])
   let result: [String: Any] = [
     "type": "response_item",
@@ -223,7 +216,7 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
       "type": "function_call_output", "call_id": "empty", "output": #"{"exit_code":0,"output":""}"#,
     ],
   ]
-  let events = parser.consume(
+  let events = LogParser.consume(
     result, platform: .codex, source: "file", line: 2, state: &state, catalog: [fixtureSkill()])
   #expect(events.first?.confirmed == false)
 }
@@ -242,7 +235,6 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
         to: url.appendingPathComponent("SKILL.md"), atomically: true, encoding: .utf8)
   }
   let skills = SkillInventory.scan(roots: [root]).map { Skill($0, now: Date()) }
-  var parser = LogParser()
   var state = ParseState()
   let command = "cat \(a.path)/SKILL.md && sed -n '1,4p' \(b.path)/SKILL.md"
   let args = String(
@@ -253,7 +245,7 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
       "type": "function_call", "name": "exec_command", "call_id": "batch", "arguments": args,
     ],
   ]
-  let attempt = parser.consume(
+  let attempt = LogParser.consume(
     call, platform: .codex, source: "file", line: 1, state: &state, catalog: skills)
   #expect(attempt.count == 2)
   let output =
@@ -263,13 +255,12 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
     "type": "response_item",
     "payload": ["type": "function_call_output", "call_id": "batch", "output": output],
   ]
-  let events = parser.consume(
+  let events = LogParser.consume(
     result, platform: .codex, source: "file", line: 2, state: &state, catalog: skills)
   #expect(events.filter(\.confirmed).count == 2)
   #expect(events.first { $0.target.contains("/b/") }?.scope == "部分")
 }
 @Test func unrelatedTrailingOutputDoesNotConfirmEmptySkill() throws {
-  var parser = LogParser()
   var state = ParseState()
   let args = #"{"cmd":"cat /skills/clean-code/SKILL.md; echo unrelated"}"#
   let call: [String: Any] = [
@@ -278,7 +269,7 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
       "type": "function_call", "name": "exec_command", "call_id": "unsafe", "arguments": args,
     ],
   ]
-  _ = parser.consume(
+  _ = LogParser.consume(
     call, platform: .codex, source: "file", line: 1, state: &state, catalog: [fixtureSkill()])
   let result: [String: Any] = [
     "type": "response_item",
@@ -288,27 +279,26 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
     ],
   ]
   #expect(
-    parser.consume(
+    LogParser.consume(
       result, platform: .codex, source: "file", line: 2, state: &state, catalog: [fixtureSkill()]
     ).allSatisfy { !$0.confirmed })
 }
 @Test func delayedProcessResultUpdatesOriginalRead() throws {
-  var parser = LogParser()
   var state = ParseState()
   let call = try parse(
     #"{"type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"original","arguments":"{\"cmd\":\"cat /skills/clean-code/SKILL.md\"}"}}"#
   )
-  let initial = parser.consume(
+  let initial = LogParser.consume(
     call, platform: .codex, source: "file", line: 1, state: &state, catalog: [fixtureSkill()])
-  _ = parser.consume(
+  _ = LogParser.consume(
     try parse(
       #"{"type":"response_item","payload":{"type":"function_call_output","call_id":"original","output":"Process running with session ID 42"}}"#
     ), platform: .codex, source: "file", line: 2, state: &state, catalog: [fixtureSkill()])
-  _ = parser.consume(
+  _ = LogParser.consume(
     try parse(
       #"{"type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"poll","arguments":"{\"session_id\":42,\"chars\":\"\"}"}}"#
     ), platform: .codex, source: "file", line: 3, state: &state, catalog: [fixtureSkill()])
-  let final = parser.consume(
+  let final = LogParser.consume(
     try parse(
       #"{"type":"response_item","payload":{"type":"function_call_output","call_id":"poll","output":"Process exited with code 0\nOutput:\n# Actual instructions"}}"#
     ), platform: .codex, source: "file", line: 4, state: &state, catalog: [fixtureSkill()])
@@ -316,25 +306,23 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
   #expect(final.first?.confirmed == true)
 }
 @Test func codexChildUsesKnownParentAndTurnContextCwd() throws {
-  var parser = LogParser()
   var state = ParseState()
-  _ = parser.consume(
+  _ = LogParser.consume(
     try parse(
       #"{"type":"session_meta","payload":{"id":"child","cwd":"/old","source":{"subagent":{"thread_spawn":{"parent_thread_id":"parent"}}}}}"#
     ), platform: .codex, source: "file", line: 1, state: &state, catalog: [fixtureSkill()])
-  _ = parser.consume(
+  _ = LogParser.consume(
     try parse(#"{"type":"turn_context","payload":{"cwd":"/new"}}"#), platform: .codex,
     source: "file", line: 2, state: &state, catalog: [fixtureSkill()])
   let call = try parse(
     #"{"type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"c","arguments":"{\"cmd\":\"cat /skills/clean-code/SKILL.md\"}"}}"#
   )
-  let events = parser.consume(
+  let events = LogParser.consume(
     call, platform: .codex, source: "file", line: 3, state: &state, catalog: [fixtureSkill()])
   #expect(events.first?.group == "parent")
   #expect(events.first?.cwd == "/new")
 }
 @Test func literalMentionDoesNotBecomeUsage() throws {
-  var parser = LogParser()
   var state = ParseState()
   for command in [
     #"text({cmd:"cat /skills/clean-code/SKILL.md"})"#,
@@ -347,7 +335,7 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
       ],
     ]
     #expect(
-      parser.consume(
+      LogParser.consume(
         call, platform: .codex, source: "file", line: 1, state: &state, catalog: [fixtureSkill()]
       ).isEmpty)
   }
@@ -359,13 +347,12 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
   #expect(LogParser.continuationKey(["session_id": 42]) == "session:42")
 }
 @Test func unclassifiedClaudeSkillRaisesCoverageIssue() throws {
-  var parser = LogParser()
   var state = ParseState()
   let call = try parse(
     #"{"sessionId":"s","message":{"content":[{"type":"tool_use","name":"Skill","id":"c","input":{"skill":"clean-code"}}]}}"#
   )
   #expect(
-    parser.consume(
+    LogParser.consume(
       call, platform: .claudeDesktop, source: "file", line: 1, state: &state,
       catalog: [fixtureSkill()]
     ).isEmpty)

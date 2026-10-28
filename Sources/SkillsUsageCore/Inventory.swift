@@ -91,11 +91,17 @@ public enum JSONLReader {
     var pending = Data()
     var committed = offset
     var line = 0
-    while let chunk = try handle.read(upToCount: 262144), !chunk.isEmpty {
+    // Drain each chunk's autoreleased storage; otherwise a full scan retains every byte read.
+    while let chunk = try autoreleasepool(invoking: { try handle.read(upToCount: 262144) }),
+      !chunk.isEmpty
+    {
       try Task.checkCancellation()
+      // Bytes already in `pending` were searched; only the new chunk can hold the next newline.
+      var cursor = pending.endIndex
       pending.append(chunk)
       var start = pending.startIndex
-      while let end = pending[start...].firstIndex(of: 10) {
+      while let end = newline(in: pending, from: cursor) {
+        cursor = end + 1
         line += 1
         try autoreleasepool { try consume(Data(pending[start..<end]), line) }
         committed += UInt64(end - start + 1)
@@ -105,6 +111,15 @@ public enum JSONLReader {
       guard pending.count <= 32 * 1024 * 1024 else { throw ReaderError.lineTooLarge }
     }
     return committed
+  }
+  private static func newline(in data: Data, from index: Data.Index) -> Data.Index? {
+    let offset = index - data.startIndex
+    guard offset < data.count else { return nil }
+    return data.withUnsafeBytes { raw in
+      guard let base = raw.baseAddress, let hit = memchr(base + offset, 10, raw.count - offset)
+      else { return nil }
+      return data.startIndex + base.distance(to: UnsafeRawPointer(hit))
+    }
   }
 }
 public func stableID(_ value: String) -> String {
