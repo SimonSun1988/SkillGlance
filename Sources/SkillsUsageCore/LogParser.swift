@@ -1,9 +1,8 @@
 import CoreFoundation
 import Foundation
 
-public struct LogParser {
-  public init() {}
-  public mutating func consume(
+public enum LogParser {
+  public static func consume(
     _ object: [String: Any], platform: Platform, source: String, line: Int, state: inout ParseState,
     catalog: [Skill]
   ) -> [UsageEvent] {

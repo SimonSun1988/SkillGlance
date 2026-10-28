@@ -5,7 +5,6 @@ enum ClaudeCodeSource {
     let root = home.appendingPathComponent(".claude/projects")
     let present = FileManager.default.fileExists(atPath: root.path)
     var result = ProviderScan(platform: .claudeCode, found: present)
-    var parser = LogParser()
     var events: [String: UsageEvent] = [:]
     let files = ImportCoordinator.files(root, extension: "jsonl")
     if present && files.isEmpty { result.issue("找不到可讀紀錄") }
@@ -44,7 +43,7 @@ enum ClaudeCodeSource {
           state.group = parent
         }
         for (line, record) in records {
-          for event in parser.consume(
+          for event in LogParser.consume(
             record, platform: .claudeCode, source: file.path, line: line,
             state: &state, catalog: catalog)
           {

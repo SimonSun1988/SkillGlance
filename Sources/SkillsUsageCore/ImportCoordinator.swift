@@ -30,9 +30,7 @@ public actor ImportCoordinator {
     let now = Date()
     var hardFailures = 0
     var roots = [
-      ".agents/skills", ".claude/skills", ".codex/skills", ".codex/plugins/cache",
-      ".codex/plugins/rea-local",
-      ".gemini/skills", ".gemini/config/skills", ".gemini/extensions",
+      ".agents/skills", ".claude/skills", ".codex/skills", ".codex/plugins", ".gemini/skills", ".gemini/config/skills", ".gemini/extensions",
       ".gemini/antigravity/skills", ".gemini/antigravity-cli/skills",
       ".gemini/antigravity-cli/plugins", ".cursor/skills", ".cursor/skills-cursor",
       ".cursor/plugins",
@@ -59,7 +57,6 @@ public actor ImportCoordinator {
         previous.cacheOnly = item.cacheOnly
         previous.installed = true
         previous.aliases = item.aliases
-        previous.lastSeen = now
         catalog[id] = previous
       } else {
         catalog[id] = Skill(item, now: now)
@@ -84,7 +81,6 @@ public actor ImportCoordinator {
     var processed = 0
     var modifiedFiles = 0
     var lastProgress = Date.distantPast
-    var parser = LogParser()
     var locations: [String: ProjectLocation] = [:]
     for (platform, files) in allFiles {
       var status = SourceStatus(
@@ -168,7 +164,7 @@ public actor ImportCoordinator {
               malformed += 1
               return
             }
-            for parsedEvent in parser.consume(
+            for parsedEvent in LogParser.consume(
               object, platform: platform, source: file.path, line: baseline + localLine,
               state: &checkpoint.state, catalog: snapshot.skills)
             {

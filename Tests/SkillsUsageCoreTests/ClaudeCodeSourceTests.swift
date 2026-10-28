@@ -4,26 +4,25 @@ import Testing
 @testable import SkillsUsageCore
 
 @Test func cliSkillCallsReadsAndContextLoadsAreRecognized() throws {
-  var parser = LogParser()
   var state = ParseState()
   let skill = fixtureSkill()
   let call = try parse(
     #"{"type":"assistant","sessionId":"cli-session","entrypoint":"cli","timestamp":"2026-10-27T01:00:00Z","message":{"content":[{"type":"tool_use","id":"c","name":"Skill","input":{"skill":"clean-code"}}]}}"#
   )
-  let pending = parser.consume(
+  let pending = LogParser.consume(
     call, platform: .claudeCode, source: "fixture", line: 1, state: &state, catalog: [skill])
   #expect(pending.count == 1)
   #expect(pending.first?.platform == .claudeCode)
   let result = try parse(
     #"{"type":"user","sessionId":"cli-session","message":{"content":[{"type":"tool_result","tool_use_id":"c","content":"Loaded"}]}}"#
   )
-  let finished = parser.consume(
+  let finished = LogParser.consume(
     result, platform: .claudeCode, source: "fixture", line: 2, state: &state, catalog: [skill])
   #expect(finished.first?.outcome == .success)
   var context = skillContextRecord(skill.path)
   context["entrypoint"] = "cli"
   #expect(
-    parser.consume(
+    LogParser.consume(
       context, platform: .claudeCode, source: "fixture", line: 3, state: &state, catalog: [skill]
     ).first?.confirmed == true)
 }
