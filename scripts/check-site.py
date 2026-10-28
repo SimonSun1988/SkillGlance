@@ -95,7 +95,7 @@ for lang, url in urls.items():
     assert webpage["@type"] == "WebPage" and webpage["url"] == url, lang
     assert webpage["inLanguage"] == lang and webpage["description"] == page.meta("description"), lang
     assert app["@type"] == "SoftwareApplication" and app["name"] == "SkillGlance", lang
-    assert app["softwareVersion"] == "0.2.0" and app["image"] == image, lang
+    assert app["softwareVersion"] == "0.2.1" and app["image"] == image, lang
     assert set(app["inLanguage"]) == set(urls), lang
     assert webpage["mainEntity"]["@id"] == app["@id"], lang
     digest = base64.b64encode(hashlib.sha256(block.encode()).digest()).decode()
