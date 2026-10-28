@@ -253,7 +253,7 @@ struct PreferencesView: View {
           .secondary)
       }
       Section(L10n.text("關於")) {
-        LabeledContent("SkillGlance", value: L10n.format("%@ · 本機版本", "0.2.0"))
+        LabeledContent("SkillGlance", value: L10n.format("%@ · 本機版本", "0.2.1"))
         Text(L10n.text("移除建議僅供檢視；App 不會刪除 Skills。")).foregroundStyle(.secondary)
       }
     }.formStyle(.grouped)
