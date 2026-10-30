@@ -47,5 +47,6 @@ import Testing
     to: folder.appendingPathComponent("session-test.json"), atomically: true, encoding: .utf8)
   let scan = try GeminiSource.scan(home: root, catalog: [])
   #expect(scan.events.isEmpty)
-  #expect(scan.status.issues > 0)
+  #expect(scan.status.issues == 0)
+  #expect(Set(scan.blockedNames.keys) == ["clean-code"])
 }

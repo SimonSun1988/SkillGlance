@@ -108,3 +108,53 @@ func usage(
   #expect(UsageMetrics.rows(snapshot, now: now.addingTimeInterval(3780)).first?.candidate == true)
   #expect(UsageMetrics.rows(snapshot, now: now.addingTimeInterval(3781)).first?.candidate == false)
 }
+private func assessable(_ names: [String], now: Date) -> Snapshot {
+  var snapshot = Snapshot()
+  snapshot.skills = names.map { name in
+    Skill(
+      DiscoveredSkill(path: "/skills/\(name)", aliases: ["/skills/\(name)"]),
+      now: now.addingTimeInterval(-100 * 86400))
+  }
+  snapshot.lastScan = now
+  snapshot.sources = [
+    SourceStatus(id: "c", platform: .codex, files: 1, bytes: 1, issues: 0, message: ""),
+    SourceStatus(id: "d", platform: .claudeDesktop, files: 1, bytes: 1, issues: 0, message: ""),
+  ]
+  return snapshot
+}
+private func candidates(_ snapshot: Snapshot, now: Date) -> [String: Bool] {
+  Dictionary(uniqueKeysWithValues: UsageMetrics.rows(snapshot, now: now).map { ($0.skill.name, $0.candidate) })
+}
+@Test func unresolvedEventsBlockOnlySkillsSharingTheirName() {
+  let now = Date()
+  var snapshot = assessable(["clean-code", "other"], now: now)
+  var builtIn = usage(snapshot.skills[0], at: now, group: "a")
+  builtIn.skillID = nil
+  builtIn.target = "anthropic-skills:pdf"
+  var simplify = builtIn
+  simplify.target = "simplify"
+  snapshot.events = [builtIn, simplify]
+  #expect(candidates(snapshot, now: now) == ["clean-code": true, "other": true])
+  var ambiguous = builtIn
+  ambiguous.target = "/elsewhere/clean-code/SKILL.md"
+  snapshot.events.append(ambiguous)
+  #expect(candidates(snapshot, now: now) == ["clean-code": false, "other": true])
+  let row = UsageMetrics.rows(snapshot, now: now).first { $0.skill.name == "clean-code" }
+  #expect(row?.reason == "可能屬於此 Skill 的紀錄尚無法確認，暫停評估")
+  snapshot.events[2].target = "plugin:clean-code"
+  #expect(candidates(snapshot, now: now) == ["clean-code": false, "other": true])
+  snapshot.events[2].time = now.addingTimeInterval(-91 * 86400)
+  #expect(candidates(snapshot, now: now) == ["clean-code": true, "other": true])
+}
+@Test func blockedNamesPauseOnlyThatSkillWithinTheObservationWindow() {
+  let now = Date()
+  var snapshot = assessable(["clean-code", "other"], now: now)
+  snapshot.blockedNames = ["clean-code": now]
+  #expect(candidates(snapshot, now: now) == ["clean-code": false, "other": true])
+  snapshot.blockedNames = ["clean-code": now.addingTimeInterval(-91 * 86400)]
+  #expect(candidates(snapshot, now: now) == ["clean-code": true, "other": true])
+  snapshot.notices = ["informational"]
+  #expect(candidates(snapshot, now: now) == ["clean-code": true, "other": true])
+  snapshot.issues = ["global"]
+  #expect(candidates(snapshot, now: now) == ["clean-code": false, "other": false])
+}

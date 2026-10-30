@@ -35,6 +35,26 @@ private let resources = URL(fileURLWithPath: #filePath)
   }
 }
 
+@Test func everyInterfaceKeyHasATranslation() throws {
+  let sources = resources.deletingLastPathComponent()
+  let files = try FileManager.default.contentsOfDirectory(at: sources, includingPropertiesForKeys: nil)
+    .filter { $0.pathExtension == "swift" }
+  let call = try NSRegularExpression(pattern: #"L10n\.(?:text|format)\(\s*"((?:[^"\\]|\\.)*)""#)
+  var keys: Set<String> = []
+  for file in files {
+    let text = try String(contentsOf: file, encoding: .utf8)
+    for match in call.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
+      keys.insert((text as NSString).substring(with: match.range(at: 1)))
+    }
+  }
+  #expect(keys.count > 100)
+  let url = resources.appendingPathComponent("zh-Hant.lproj/Localizable.strings")
+  let catalog = try #require(
+    PropertyListSerialization.propertyList(from: Data(contentsOf: url), format: nil)
+      as? [String: String])
+  for key in keys.sorted() { #expect(catalog[key] != nil, "Missing translation: \(key)") }
+}
+
 @Test func nativeLanguageMatchingSupportsRegionalChineseAndEnglishFallback() {
   let available = ["en", "zh-Hans", "zh-Hant"]
   for (preference, expected) in [
@@ -45,6 +65,17 @@ private let resources = URL(fileURLWithPath: #filePath)
       Bundle.preferredLocalizations(from: available, forPreferences: [preference]).first == expected
     )
   }
+}
+
+@Test func dateLocaleFollowsTheResolvedStringLanguage() {
+  let taiwan = Locale(identifier: "zh_TW")
+  #expect(L10n.locale(language: "zh-Hant", current: taiwan) == taiwan)
+  #expect(L10n.locale(language: "en", current: taiwan).identifier == "en_TW")
+  #expect(L10n.locale(language: "zh-Hans", current: taiwan).identifier == "zh-Hans_TW")
+  // A Japanese system falls back to English strings, so dates must not stay Japanese.
+  let japan = Locale(identifier: "ja_JP")
+  #expect(L10n.locale(language: "en", current: japan).language.languageCode == "en")
+  #expect(L10n.locale(language: nil, current: japan) == japan)
 }
 
 @Test func storedDiagnosticsAreTranslatedWithoutTreatingPathsAsMessages() throws {
@@ -63,7 +94,7 @@ private let resources = URL(fileURLWithPath: #filePath)
     L10n.message("Claude Desktop 部分檔案無法讀取（CocoaError）", bundle: english)
       == "Some Claude Desktop files could not be read (CocoaError).")
   #expect(
-    L10n.message("紀錄輪替、截斷或改寫：Codex，觀察期已重設", bundle: simplified)
-      == "记录轮替、截断或改写：Codex，观察期已重置")
+    L10n.message("紀錄輪替、截斷或改寫：Codex，已重新讀取該檔案", bundle: simplified)
+      == "记录轮替、截断或改写：Codex，已重新读取该文件")
   #expect(L10n.message("/tmp/保護中/SKILL.md", bundle: english) == "/tmp/保護中/SKILL.md")
 }

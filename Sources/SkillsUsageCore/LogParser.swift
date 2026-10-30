@@ -7,6 +7,8 @@ public enum LogParser {
     catalog: [Skill]
   ) -> [UsageEvent] {
     guard [.codex, .claudeDesktop, .claudeCode].contains(platform) else { return [] }
+    // Request blobs replay earlier tool calls without their own timestamp.
+    if object["type"] as? String == "api-request-blob" { return [] }
     let payload = object["payload"] as? [String: Any] ?? object
     if object["type"] as? String == "session_meta" {
       state.session = payload["id"] as? String ?? payload["session_id"] as? String ?? state.session
@@ -21,8 +23,17 @@ public enum LogParser {
       state.group = state.session.isEmpty ? stableID(source) : state.session
     }
     state.cwd = object["cwd"] as? String ?? state.cwd
-    let time = Dates.parse(object["timestamp"]) ?? Date(timeIntervalSince1970: 0)
+    let recorded = Dates.parse(object["timestamp"])
+    let time = recorded ?? Date(timeIntervalSince1970: 0)
     var events: [UsageEvent] = []
+    func block(_ names: Set<String>, in list: inout [String: Date]) {
+      let time = recorded ?? Date()
+      for name in names { list[name] = max(list[name] ?? .distantPast, time) }
+    }
+    func unparsed(_ text: String) {
+      let names = SkillIdentity.mentionedNames(text)
+      if names.isEmpty { state.unparsedReads += 1 } else { block(names, in: &state.blockedNames) }
+    }
     func resolve(_ target: String) -> String? { SkillIdentity.resolve(target, catalog: catalog) }
     func event(
       _ call: String, _ target: PendingRead, _ outcome: Outcome, _ confirmed: Bool, _ index: Int
@@ -90,15 +101,16 @@ public enum LogParser {
       guard platform == .claudeDesktop ? state.desktop : !state.desktop else {
         if state.explicitCLI != true {
           let blocks = (object["message"] as? [String: Any])?["content"] as? [[String: Any]] ?? []
-          if object["attributionSkill"] != nil
-            || blocks.contains(where: { block in
-              block["name"] as? String == "Skill"
-                || ((block["input"] as? [String: Any])?["file_path"] as? String ?? "").hasSuffix(
-                  "/SKILL.md")
-            })
-          {
-            state.coverageIssues.insert("Claude 紀錄來源未確認")
+          var targets = blocks.compactMap { block -> String? in
+            let input = block["input"] as? [String: Any]
+            if block["name"] as? String == "Skill" { return input?["skill"] as? String ?? "" }
+            let path = input?["file_path"] as? String ?? ""
+            return path.hasSuffix("/SKILL.md") ? path : nil
           }
+          if let skill = object["attributionSkill"] { targets.append(skill as? String ?? "") }
+          let names = targets.map(SkillIdentity.shortName)
+          if names.contains(where: \.isEmpty) { state.unparsedReads += 1 }
+          block(Set(names.filter { !$0.isEmpty }), in: &state.unconfirmedSource)
         }
         return []
       }
@@ -133,9 +145,7 @@ public enum LogParser {
             let command = input["command"] as? String ?? ""
             let targets = Self.readTargets(command)
             remember(call, targets.map { ($0.0, .read, $0.1) })
-            if command.contains("SKILL.md") && targets.isEmpty {
-              state.coverageIssues.insert("無法解析部分讀取指令")
-            }
+            if command.contains("SKILL.md") && targets.isEmpty { unparsed(command) }
           default: break
           }
         } else if block["type"] as? String == "tool_result",
@@ -175,9 +185,7 @@ public enum LogParser {
           {
             let command = args["cmd"] as? String ?? args["command"] as? String ?? ""
             targets = Self.readTargets(command)
-            if command.contains("SKILL.md") && targets.isEmpty {
-              state.coverageIssues.insert("無法解析部分讀取指令")
-            }
+            if command.contains("SKILL.md") && targets.isEmpty { unparsed(command) }
           }
         } else if name == "exec" {
           wrapped = true
@@ -186,21 +194,22 @@ public enum LogParser {
             state.polls[call] = original
           }
           let raw = payload["input"] as? String ?? payload["arguments"] as? String ?? ""
+          var skipped: [String] = []
           for command in Self.wrappedCommands(raw) {
             let reads = Self.readTargets(command)
             targets += reads
-            if command.contains("SKILL.md") && reads.isEmpty {
-              state.coverageIssues.insert("無法解析部分讀取指令")
-            }
+            if command.contains("SKILL.md") && reads.isEmpty { skipped.append(command) }
           }
           if raw.contains("SKILL.md") && targets.isEmpty {
-            state.coverageIssues.insert("部分工具封裝不在支援範圍")
+            unparsed(raw)
+          } else {
+            skipped.forEach(unparsed)
           }
         }
         if !["exec_command", "shell_command", "exec", "write_stdin", "wait"].contains(name),
-          (payload["arguments"] as? String ?? "").contains("SKILL.md")
+          let arguments = payload["arguments"] as? String, arguments.contains("SKILL.md")
         {
-          state.coverageIssues.insert("未支援的相關讀取工具")
+          unparsed(arguments)
         }
         remember(call, targets.map { ($0.0, .read, $0.1) }, requiresMatch: wrapped)
       } else if type == "function_call_output" || type == "custom_tool_call_output",

@@ -19,6 +19,15 @@ public enum UsageMetrics {
   ) -> [UsageRow] {
     let cutoff = now.addingTimeInterval(-90 * 86400)
     let grouped = Dictionary(grouping: snapshot.events, by: { $0.skillID ?? "unresolved" })
+    let paused =
+      snapshot.scanIncomplete == true || !snapshot.issues.isEmpty || !completeCoverage(snapshot)
+      || snapshot.lastScan.map { now.timeIntervalSince($0) > ScanPolicy.maximumSnapshotAge } ?? true
+    // Records that may belong to a skill but could not be attributed pause only that skill.
+    let uncertain = Set(
+      (snapshot.blockedNames ?? [:]).filter { $0.value >= cutoff }.keys
+        + (grouped["unresolved"] ?? []).filter { $0.time >= cutoff }.map {
+          SkillIdentity.shortName($0.target)
+        })
     return snapshot.skills.map { skill in
       let all = grouped[skill.id] ?? []
       let visible = all.filter { $0.time >= since && (platform == nil || $0.platform == platform) }
@@ -42,14 +51,10 @@ public enum UsageMetrics {
         row.reason = "觀察未滿 90 天"
       } else if all.contains(where: { $0.time >= cutoff }) {
         row.reason = "近 90 天有使用或嘗試訊號"
-      } else if snapshot.scanIncomplete == true || !snapshot.issues.isEmpty
-        || !completeCoverage(snapshot)
-        || snapshot.lastScan == nil
-        || now.timeIntervalSince(snapshot.lastScan!) > ScanPolicy.maximumSnapshotAge
-      {
+      } else if paused {
         row.reason = "來源或證據不完整，暫停評估"
-      } else if snapshot.events.contains(where: { $0.skillID == nil }) {
-        row.reason = "仍有未歸屬紀錄，暫停評估"
+      } else if !uncertain.isDisjoint(with: SkillIdentity.names(skill)) {
+        row.reason = "可能屬於此 Skill 的紀錄尚無法確認，暫停評估"
       } else {
         row.candidate = true
         row.reason = "完整觀察 90 天，無使用訊號"

@@ -18,7 +18,8 @@ import Testing
   #expect(scan.events.filter(\.confirmed).count == 1)
   #expect(scan.events.filter { $0.outcome == .failure }.count == 2)
   #expect(scan.events.filter { $0.outcome == .unknown }.count == 2)
-  #expect(scan.status.issues > 0)
+  #expect(scan.status.issues == 0)
+  #expect(Set(scan.blockedNames.keys) == ["example"])
   #expect(scan.events.first?.cwd == "/example/project")
   #expect(scan.events.first?.group == "composer")
   #expect(scan.events.allSatisfy { $0.source == fixture.database.path && $0.line == 0 })
@@ -33,7 +34,8 @@ import Testing
   try fixture.bubble("c", call: "bad-time", time: "not-a-date")
   let scan = try CursorSource.scan(home: fixture.home, catalog: [])
   #expect(scan.events.isEmpty)
-  #expect(scan.status.issues >= 3)
+  #expect(scan.status.issues == 0)
+  #expect(Set(scan.blockedNames.keys) == ["example"])
 }
 
 @Test func cursorDeduplicatesCallIDsAndMarksConflictingCopiesUnknown() throws {
@@ -49,7 +51,8 @@ import Testing
   #expect(scan.events.first?.outcome == .unknown)
   #expect(scan.events.first?.confirmed == false)
   #expect(scan.events.first?.conflicted == true)
-  #expect(scan.status.issues > 0)
+  #expect(scan.status.issues == 0)
+  #expect(Set(scan.blockedNames.keys) == ["example"])
 }
 
 @Test func cursorUsesHeaderWorkspaceFallbackAndLeavesDatabaseUnchanged() throws {
@@ -103,7 +106,8 @@ import Testing
   let scan = try CursorSource.scan(home: fixture.home, catalog: [])
   #expect(scan.events.count == 1)
   #expect(scan.events.first?.outcome == .unknown)
-  #expect(scan.status.issues > 0)
+  #expect(scan.status.issues == 0)
+  #expect(Set(scan.blockedNames.keys) == ["example"])
 }
 
 @Test func cursorRejectsUnknownSchemaAndNonDatabaseFiles() throws {
@@ -114,7 +118,8 @@ import Testing
   let scan = try CursorSource.scan(home: fixture.home, catalog: [])
   #expect(scan.events.first?.outcome == .unknown)
   #expect(scan.events.first?.confirmed == false)
-  #expect(scan.status.issues > 0)
+  #expect(scan.status.issues == 0)
+  #expect(Set(scan.blockedNames.keys) == ["example"])
   try Data("not sqlite".utf8).write(to: fixture.database)
   #expect(try CursorSource.scan(home: fixture.home, catalog: []).status.issues > 0)
 }
@@ -246,5 +251,56 @@ private final class CursorFixture {
     values: ["bubbleId:composer:future", CursorFixture.json(bubble)])
   let scan = try CursorSource.scan(home: fixture.home, catalog: [])
   #expect(scan.events.isEmpty)
-  #expect(scan.status.issues > 0)
+  #expect(scan.status.issues == 0)
+  #expect(Set(scan.blockedNames.keys) == ["clean-code"])
+}
+
+@Test func cursorMissingProjectOrUnknownOutcomeDoesNotBlockOtherSkills() throws {
+  let fixture = try CursorFixture()
+  defer { fixture.remove() }
+  try fixture.composer(uri: nil)
+  try fixture.bubble("a", call: "unattributed")
+  try fixture.bubble("b", call: "pending", status: "running")
+  try fixture.insert(
+    "INSERT INTO cursorDiskKV(key,value) VALUES(?,?)",
+    values: [
+      "bubbleId:composer:other",
+      CursorFixture.json([
+        "_v": 3, "toolFormerData": ["name": "run_terminal_cmd", "params": ["command": "ls"]],
+      ]),
+    ])
+  let scan = try CursorSource.scan(home: fixture.home, catalog: [])
+  #expect(scan.status.issues == 0)
+  #expect(Set(scan.blockedNames.keys) == ["example"])
+  #expect(scan.notices.contains("Cursor 紀錄缺少專案歸屬"))
+  let now = Date()
+  var snapshot = Snapshot()
+  snapshot.skills = ["example", "other"].map {
+    Skill(DiscoveredSkill(path: "/skills/\($0)", aliases: []), now: now.addingTimeInterval(-100 * 86400))
+  }
+  snapshot.lastScan = now
+  snapshot.blockedNames = scan.blockedNames.mapValues { _ in now }
+  snapshot.sources = [
+    SourceStatus(id: "c", platform: .codex, files: 1, bytes: 1, issues: 0, message: ""),
+    SourceStatus(id: "d", platform: .claudeDesktop, files: 1, bytes: 1, issues: 0, message: ""),
+  ]
+  let rows = UsageMetrics.rows(snapshot, now: now)
+  #expect(rows.first { $0.skill.name == "other" }?.candidate == true)
+  #expect(rows.first { $0.skill.name == "example" }?.candidate == false)
+}
+
+@Test func cursorDecodesOnlyRecordsThatNameASkillFile() throws {
+  let fixture = try CursorFixture()
+  defer { fixture.remove() }
+  try fixture.composer()
+  try fixture.bubble("a", call: "read")
+  try fixture.insert(
+    "INSERT INTO cursorDiskKV VALUES(?,?)", values: ["bubbleId:composer:chat", "{not json"])
+  let quiet = try CursorSource.scan(home: fixture.home, catalog: [])
+  #expect(quiet.events.count == 1)
+  #expect(quiet.status.issues == 0)
+  try fixture.insert(
+    "INSERT INTO cursorDiskKV VALUES(?,?)",
+    values: ["bubbleId:composer:broken", "{\"path\": \"/skills/x/SKILL.md\""])
+  #expect(try CursorSource.scan(home: fixture.home, catalog: []).status.issues == 1)
 }

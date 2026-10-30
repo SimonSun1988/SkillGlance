@@ -172,22 +172,171 @@ import Testing
   #expect(saved.events.count == 1)
   #expect(FileManager.default.fileExists(atPath: root.path))
 }
-@Test func sameSizeInPlaceRewriteCreatesCoverageIssue() async throws {
+@Test func sameSizeInPlaceRewriteRereadsOnlyThatFileWithoutResettingObservation() async throws {
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }
   let source = root.appendingPathComponent(".codex/sessions")
-  try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+  let skill = root.appendingPathComponent(".agents/skills/clean-code")
+  for url in [source, skill] {
+    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+  }
+  try "# Instructions".write(
+    to: skill.appendingPathComponent("SKILL.md"), atomically: true, encoding: .utf8)
   let log = source.appendingPathComponent("s.jsonl")
   let first = #"{"type":"session_meta","payload":{"id":"a"}}"# + "\n"
   try first.write(to: log, atomically: false, encoding: .utf8)
   let store = try UsageStore(directory: root.appendingPathComponent("db"))
   let importer = ImportCoordinator(home: root, store: store)
-  _ = try await importer.scan()
+  let initial = try await importer.scan()
   let handle = try FileHandle(forWritingTo: log)
   try handle.seek(toOffset: 0)
   try handle.write(contentsOf: Data(first.replacingOccurrences(of: "\"a\"", with: "\"b\"").utf8))
   try handle.close()
-  #expect(try await importer.scan().issues.contains { $0.contains("截斷") || $0.contains("改寫") })
+  let rewritten = try await importer.scan()
+  let rotated = { (snapshot: Snapshot) in
+    (snapshot.notices ?? []).contains { $0.contains("截斷") || $0.contains("改寫") }
+  }
+  #expect(rotated(rewritten))
+  #expect(rewritten.issues.isEmpty)
+  #expect(rewritten.skills.map(\.observedAt) == initial.skills.map(\.observedAt))
+  #expect(try await checkpoint(store, "/sessions/s.jsonl")?.state.session == "b")
+  let next = try await importer.scan()
+  #expect(!rotated(next))
+  #expect(next.skills.map(\.observedAt) == initial.skills.map(\.observedAt))
+}
+private func checkpoint(_ store: UsageStore, _ suffix: String) async throws -> Checkpoint? {
+  try await store.checkpoints().first { $0.key.hasSuffix(suffix) }?.value
+}
+@Test func deletedSourceFileKeepsEventsAndPrunesItsCheckpoint() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let source = root.appendingPathComponent(".codex/sessions")
+  try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+  let meta = #"{"type":"session_meta","payload":{"id":"s"}}"#
+  let call =
+    #"{"type":"response_item","timestamp":"2026-10-27T01:00:00Z","payload":{"type":"function_call","name":"exec_command","call_id":"c","arguments":"{\"cmd\":\"cat /skills/clean-code/SKILL.md\"}"}}"#
+  let old = source.appendingPathComponent("old.jsonl")
+  try ([meta, call].joined(separator: "\n") + "\n").write(
+    to: old, atomically: true, encoding: .utf8)
+  try (#"{"type":"session_meta","payload":{"id":"t"}}"# + "\n").write(
+    to: source.appendingPathComponent("kept.jsonl"), atomically: true, encoding: .utf8)
+  let store = try UsageStore(directory: root.appendingPathComponent("db"))
+  let importer = ImportCoordinator(home: root, store: store)
+  let first = try await importer.scan()
+  #expect(first.events.count == 1)
+  #expect(try await checkpoint(store, "/sessions/old.jsonl") != nil)
+  try FileManager.default.removeItem(at: old)
+  let second = try await importer.scan()
+  #expect(second.events.map(\.id) == first.events.map(\.id))
+  #expect(second.issues.isEmpty)
+  #expect(try await checkpoint(store, "/sessions/old.jsonl") == nil)
+  #expect(try await checkpoint(store, "/sessions/kept.jsonl") != nil)
+  #expect(second.sources.first { $0.platform == .codex }?.issues == 0)
+}
+@Test func malformedLinesFromAnEarlierScanStillBlockLaterIncrementalScans() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let source = root.appendingPathComponent(".codex/sessions")
+  try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+  let log = source.appendingPathComponent("s.jsonl")
+  try "not json\n".write(to: log, atomically: true, encoding: .utf8)
+  let store = try UsageStore(directory: root.appendingPathComponent("db"))
+  let importer = ImportCoordinator(home: root, store: store)
+  let malformed = { (snapshot: Snapshot) in snapshot.issues.contains { $0.contains("無法解析") } }
+  #expect(malformed(try await importer.scan()))
+  let handle = try FileHandle(forWritingTo: log)
+  try handle.seekToEnd()
+  try handle.write(contentsOf: Data((#"{"type":"session_meta","payload":{"id":"s"}}"# + "\n").utf8))
+  try handle.close()
+  #expect(malformed(try await importer.scan()))
+  #expect(malformed(try await importer.scan()))
+}
+@Test func unparsedCommandsBlockOnlyNamedSkillsAndOtherwiseLeaveANotice() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let source = root.appendingPathComponent(".codex/sessions")
+  try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+  func call(_ id: String, _ command: String) throws -> String {
+    let args = String(
+      data: try JSONSerialization.data(withJSONObject: ["cmd": command]), encoding: .utf8)!
+    return String(
+      data: try JSONSerialization.data(withJSONObject: [
+        "type": "response_item", "timestamp": "2026-10-27T01:00:00Z",
+        "payload": [
+          "type": "function_call", "name": "exec_command", "call_id": id, "arguments": args,
+        ],
+      ]), encoding: .utf8)!
+  }
+  let lines = [
+    #"{"type":"session_meta","payload":{"id":"s"}}"#,
+    try call("named", "python3 - <<'EOF'\nprint(open('/skills/clean-code/SKILL.md').read())\nEOF"),
+    try call("anonymous", "rg -l SKILL.md ."),
+  ]
+  try (lines.joined(separator: "\n") + "\n").write(
+    to: source.appendingPathComponent("s.jsonl"), atomically: true, encoding: .utf8)
+  let store = try UsageStore(directory: root.appendingPathComponent("db"))
+  let snapshot = try await ImportCoordinator(home: root, store: store).scan()
+  #expect(snapshot.issues.isEmpty)
+  #expect(Set((snapshot.blockedNames ?? [:]).keys) == ["clean-code"])
+  #expect((snapshot.notices ?? []).contains { $0.contains("SKILL.md") })
+}
+@Test func requestBlobsNeverCreateEventsOrOverwriteRealTimes() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let source = root.appendingPathComponent(".claude/projects/p")
+  try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+  let real =
+    #"{"entrypoint":"claude-desktop","sessionId":"s","timestamp":"2026-10-27T01:00:00.000Z","message":{"content":[{"type":"tool_use","name":"Skill","id":"c","input":{"skill":"clean-code"}}]}}"#
+  let blob =
+    #"{"type":"api-request-blob","entrypoint":"claude-desktop","sessionId":"s","message":{"content":[{"type":"tool_use","name":"Skill","id":"c","input":{"skill":"clean-code"}},{"type":"tool_use","name":"Skill","id":"blob-only","input":{"skill":"simplify"}}]}}"#
+  try ([real, blob].joined(separator: "\n") + "\n").write(
+    to: source.appendingPathComponent("s.jsonl"), atomically: true, encoding: .utf8)
+  var stored = usage(fixtureSkill(), at: Date(timeIntervalSince1970: 0), group: "s")
+  stored.id = stableID("claudeDesktop|s|c|0")
+  stored.platform = .claudeDesktop
+  var before = Snapshot()
+  before.events = [stored]
+  let store = try UsageStore(directory: root.appendingPathComponent("db"))
+  try await store.save(before, checkpoints: [:])
+  let snapshot = try await ImportCoordinator(home: root, store: store).scan()
+  #expect(snapshot.events.count == 1)
+  #expect(snapshot.events.first?.time == Dates.parse("2026-10-27T01:00:00Z"))
+  #expect(snapshot.events.first?.outcome == .success)
+}
+@Test func parserRevisionTwoReplaysOldCheckpointsWithoutRebuildingStatistics() async throws {
+  #expect(ParseState.currentRevision == 2)
+  let root = try temporaryDirectory().resolvingSymlinksInPath()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let skillDir = root.appendingPathComponent(".agents/skills/clean-code")
+  let project = root.appendingPathComponent(".claude/projects/p")
+  for path in [skillDir, project] {
+    try FileManager.default.createDirectory(at: path, withIntermediateDirectories: true)
+  }
+  try "# Instructions".write(
+    to: skillDir.appendingPathComponent("SKILL.md"), atomically: true, encoding: .utf8)
+  var bytes = try JSONSerialization.data(withJSONObject: skillContextRecord(skillDir.path))
+  bytes.append(0x0a)
+  try bytes.write(to: project.appendingPathComponent("session.jsonl"))
+  let log = try #require(
+    ImportCoordinator.files(root.appendingPathComponent(".claude/projects"), extension: "jsonl")
+      .first)
+  let observed = Date().addingTimeInterval(-100 * 86400)
+  let skill = Skill(DiscoveredSkill(path: skillDir.path, aliases: [skillDir.path]), now: observed)
+  var before = Snapshot()
+  before.skills = [skill]
+  before.lastScan = Date()
+  before.events = [usage(skill, at: observed, group: "retained")]
+  var checkpoint = Checkpoint()
+  checkpoint.offset = UInt64(bytes.count)
+  checkpoint.line = 1
+  checkpoint.state.parserRevision = 1
+  let store = try UsageStore(directory: root.appendingPathComponent("db"))
+  try await store.save(before, checkpoints: [log.path: checkpoint])
+  let snapshot = try await ImportCoordinator(home: root, store: store).scan()
+  #expect(snapshot.events.contains { $0.id == before.events[0].id })
+  #expect(snapshot.events.contains { $0.scope == "上下文載入" && $0.confirmed })
+  #expect(snapshot.skills.first?.observedAt == observed)
+  #expect(try await store.checkpoints()[log.path]?.state.parserRevision == 2)
 }
 @Test func newProjectResolvesPreviouslyImportedNameAndProject() async throws {
   let root = try temporaryDirectory()
