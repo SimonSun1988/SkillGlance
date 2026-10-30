@@ -3,15 +3,18 @@ import SwiftUI
 
 struct SkillDetail: View {
   @EnvironmentObject var model: AppModel
+  @Environment(\.textBase) private var base
   let row: UsageRow
   var events: [UsageEvent] {
     model.snapshot.events.filter { $0.skillID == row.id && $0.evidence != .context }
   }
   var body: some View {
+    let recent = Array(events.prefix(60))
+    let days = Dictionary(grouping: recent) { Calendar.current.startOfDay(for: $0.time) }
     ScrollView {
-      VStack(alignment: .leading, spacing: 20) {
-        HStack {
-          Image(systemName: "doc.text").font(.title).foregroundStyle(.tint)
+      VStack(alignment: .leading, spacing: 18) {
+        HStack(alignment: .firstTextBaseline) {
+          Text(row.skill.name).font(.system(size: base + 5, weight: .bold)).textSelection(.enabled)
           Spacer()
           Button {
             model.important(row.skill)
@@ -19,120 +22,143 @@ struct SkillDetail: View {
             Image(systemName: row.skill.important ? "star.fill" : "star")
           }.help(row.skill.important ? L10n.text("取消重要標記") : L10n.text("標記為重要")).accessibilityLabel(
             L10n.text("重要標記")
-          ).disabled(
-            model.scanning)
+          ).disabled(model.scanning)
         }
-        Text(row.skill.name).font(.title.bold()).textSelection(.enabled)
-        Label(
-          row.reason, systemImage: row.skill.important || row.skill.managed ? "shield" : "clock"
-        ).foregroundStyle(.secondary)
-        HStack {
-          Metric(value: row.invocations, title: L10n.text("呼叫"), icon: "bolt")
-          Metric(value: row.reads, title: L10n.text("確認讀取"), icon: "doc.text")
+        Text(row.reason).foregroundStyle(Color.muted)
+        HStack(spacing: 28) {
+          Figure(value: row.invocations, title: L10n.text("呼叫"))
+          Figure(value: row.reads, title: L10n.text("確認讀取"))
+          Figure(value: row.conversations, title: L10n.text("對話"))
+          Figure(value: row.days, title: L10n.text("天數"))
         }
         Divider()
-        VStack(alignment: .leading, spacing: 8) {
-          Text(L10n.text("安裝來源")).font(.headline)
-          Text(row.skill.path).font(.body.monospaced()).foregroundStyle(.secondary)
+        VStack(spacing: 6) {
+          fact(L10n.text("失敗")) { Text(row.failures, format: .number).monospacedDigit() }
+          fact(L10n.text("未知")) { Text(row.unknown, format: .number).monospacedDigit() }
+          fact(L10n.text("開始觀察")) { Text(row.skill.observedAt, style: .date) }
+          fact(L10n.text("最近使用")) {
+            if let date = row.lastUsed { Text(date, style: .date) } else { Text("—") }
+          }
+        }
+        if row.skill.aliases.count > 1 {
+          Text(L10n.format("%lld 個路徑連到同一來源，已合併計算。", row.skill.aliases.count))
+            .font(.system(size: base - 1)).foregroundStyle(Color.muted)
+        }
+        Divider()
+        VStack(alignment: .leading, spacing: 6) {
+          Text(L10n.text("安裝來源")).font(.system(size: base, weight: .semibold))
+          Text(row.skill.path).font(.system(size: base - 1, design: .monospaced)).foregroundStyle(Color.muted)
             .textSelection(.enabled)
           Button(L10n.text("在 Finder 中顯示"), systemImage: "folder") { model.reveal(row.skill.path) }
         }
-        HStack {
-          Label(L10n.text("失敗"), systemImage: "xmark.circle")
-          Spacer()
-          Text("\(row.failures)")
-          Label(L10n.text("未知"), systemImage: "questionmark.circle")
-          Text("\(row.unknown)")
-        }.foregroundStyle(.secondary)
-        LabeledContent(L10n.text("開始觀察")) { Text(row.skill.observedAt, style: .date) }
-        if row.skill.aliases.count > 1 {
-          Text(L10n.format("%lld 個路徑連到同一來源，已合併計算。", row.skill.aliases.count)).font(.body)
-            .foregroundStyle(
-              .secondary)
-        }
         Divider()
-        Text(L10n.text("使用紀錄")).font(.headline)
-        if events.isEmpty { Text(L10n.text("尚無可歸屬紀錄")).foregroundStyle(.secondary) }
-        ForEach(events.prefix(60)) { event in
-          VStack(alignment: .leading, spacing: 7) {
-            HStack {
-              Image(systemName: event.evidence == .invocation ? "bolt" : "doc.text")
-              Text(
-                event.evidence == .invocation
-                  ? L10n.text("呼叫") : event.confirmed ? L10n.text("確認讀取") : L10n.text("讀取嘗試"))
-              Spacer()
-              Text(
-                event.outcome == .success
-                  ? L10n.text("成功回傳")
-                  : event.outcome == .failure ? L10n.text("失敗") : L10n.text("結果未知")
-              )
-              .foregroundStyle(.secondary)
-            }
-            HStack {
-              Text(event.platform.label)
-              Spacer()
-              Text(event.time, format: .dateTime.month().day().hour().minute())
-            }.font(.body).foregroundStyle(.secondary)
-            if event.time < row.skill.observedAt {
-              Text(L10n.text("歷史路徑／名稱關聯 · 未驗證當時版本")).font(.body).foregroundStyle(.secondary)
-            }
-            if event.evidence == .read {
-              Text(L10n.format("讀取範圍：%@", L10n.text(event.scope))).font(.body).foregroundStyle(
-                .secondary)
-            }
-            if !event.cwd.isEmpty {
-              Text(URL(fileURLWithPath: event.cwd).lastPathComponent).font(.body)
-                .foregroundStyle(.secondary)
-            }
-            Button(
-              event.line > 0 ? L10n.format("來源第 %lld 行", event.line) : L10n.text("在 Finder 顯示來源"),
-              systemImage: "arrow.up.right.square"
-            ) {
-              model.reveal(event.source)
-            }.font(.body).buttonStyle(.link)
-          }.padding(12).background(.background.secondary, in: RoundedRectangle(cornerRadius: 8))
+        Text(L10n.text("使用紀錄")).font(.system(size: base, weight: .semibold))
+        if events.isEmpty { Text(L10n.text("尚無可歸屬紀錄")).foregroundStyle(Color.muted) }
+        ForEach(days.keys.sorted(by: >), id: \.self) { day in
+          VStack(alignment: .leading, spacing: 10) {
+            Text(day, format: .dateTime.year().month().day().weekday())
+              .font(.system(size: base - 1, weight: .semibold)).foregroundStyle(Color.muted)
+            ForEach(days[day] ?? []) { event in EventRow(event: event, observedAt: row.skill.observedAt) }
+          }
         }
-        Text(L10n.text("成功回傳不代表任務成功；讀取不代表已遵循指示。")).font(.body).foregroundStyle(.secondary)
+        Text(L10n.text("成功回傳不代表任務成功；讀取不代表已遵循指示。")).font(.system(size: base - 1))
+          .foregroundStyle(Color.muted)
       }.padding(20)
     }
+  }
+  private func fact<Value: View>(_ title: String, @ViewBuilder value: () -> Value) -> some View {
+    HStack {
+      Text(title).foregroundStyle(Color.muted)
+      Spacer()
+      value()
+    }
+  }
+}
+struct EventRow: View {
+  @EnvironmentObject var model: AppModel
+  @Environment(\.textBase) private var base
+  let event: UsageEvent
+  let observedAt: Date
+  var body: some View {
+    VStack(alignment: .leading, spacing: 3) {
+      HStack(spacing: 6) {
+        Text(
+          event.evidence == .invocation
+            ? L10n.text("呼叫") : event.confirmed ? L10n.text("確認讀取") : L10n.text("讀取嘗試")
+        ).fontWeight(.medium)
+        Text(
+          event.outcome == .success
+            ? L10n.text("成功回傳")
+            : event.outcome == .failure ? L10n.text("失敗") : L10n.text("結果未知")
+        ).foregroundStyle(event.outcome == .failure ? Color.red : Color.muted)
+        Spacer()
+        Text(event.time, format: .dateTime.hour().minute()).foregroundStyle(Color.muted)
+          .monospacedDigit()
+        Button {
+          model.reveal(event.source)
+        } label: {
+          Image(systemName: "arrow.up.right.square")
+        }.buttonStyle(.borderless).help(
+          event.line > 0 ? L10n.format("來源第 %lld 行", event.line) : L10n.text("在 Finder 顯示來源")
+        ).accessibilityLabel(L10n.text("在 Finder 顯示來源"))
+      }
+      Text(details).font(.system(size: base - 1)).foregroundStyle(Color.muted).help(event.cwd)
+      if event.time < observedAt {
+        Text(L10n.text("歷史路徑／名稱關聯 · 未驗證當時版本")).font(.system(size: base - 1)).foregroundStyle(Color.muted)
+      }
+    }
+  }
+  // Name the place by its worktree or project, not by the last folder of the working directory.
+  private var details: String {
+    let place = event.worktree ?? event.project ?? (event.cwd.isEmpty ? nil : event.cwd)
+    var parts = [event.platform.label]
+    if let place { parts.append(URL(fileURLWithPath: place).lastPathComponent) }
+    if event.evidence == .read { parts.append(L10n.format("讀取範圍：%@", L10n.text(event.scope))) }
+    return parts.joined(separator: " · ")
   }
 }
 struct SourcesView: View {
   @EnvironmentObject var model: AppModel
+  @Environment(\.textBase) private var base
   var body: some View {
     Form {
       Section(L10n.text("AI 工具")) {
         ForEach(Platform.allCases, id: \.self) { platform in
           let source = model.snapshot.sources.first { $0.platform == platform }
-          HStack(alignment: .top, spacing: 14) {
-            Image(systemName: "terminal").font(.title2).foregroundStyle(.tint).frame(width: 32)
-            VStack(alignment: .leading, spacing: 6) {
-              Text(platform.label).font(.headline)
-              Text(sourceDescription(platform)).font(.body).foregroundStyle(.secondary)
-              Text(
-                source.map {
+          let detected = source != nil && source?.requiredForAssessment != false
+          let review = detected && (source?.issues ?? 0) > 0
+          HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(
+              systemName: source == nil
+                ? "circle.dotted"
+                : !detected ? "minus.circle" : review ? "exclamationmark.triangle.fill" : "checkmark.circle"
+            ).foregroundStyle(review ? Color.orange : Color.muted).frame(width: 18)
+              .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+              HStack {
+                Text(platform.label).font(.system(size: base, weight: .semibold))
+                Spacer()
+                Text(
+                  source == nil
+                    ? L10n.text("未掃描")
+                    : !detected ? L10n.text("未偵測") : review ? L10n.text("待確認") : L10n.text("本機可讀")
+                ).foregroundStyle(review ? Color.orange : Color.muted)
+              }
+              Text(sourceDescription(platform)).font(.system(size: base - 1)).foregroundStyle(Color.muted)
+              if let source, detected {
+                Text(
                   L10n.format(
-                    "%lld 個紀錄檔 · %@", $0.files,
-                    ByteCountFormatter.string(fromByteCount: $0.bytes, countStyle: .file))
-                } ?? L10n.text("等待首次匯入")
-              )
-              Text(L10n.message(source?.message ?? "未掃描")).font(.body).foregroundStyle(.secondary)
+                    "%lld 個紀錄檔 · %@", source.files,
+                    ByteCountFormatter.string(fromByteCount: source.bytes, countStyle: .file)))
+              }
+              if review, let source {
+                Text(L10n.message(source.message)).font(.system(size: base - 1)).foregroundStyle(Color.muted)
+              }
             }
-            Spacer()
-            Label(
-              source == nil
-                ? L10n.text("未掃描")
-                : source?.requiredForAssessment == false
-                  ? L10n.text("未偵測")
-                  : (source?.issues ?? 0) > 0 ? L10n.text("待確認") : L10n.text("本機可讀"),
-              systemImage: source?.requiredForAssessment == false
-                ? "minus.circle"
-                : (source?.issues ?? 0) > 0 ? "exclamationmark.circle" : "checkmark.circle"
-            ).font(.body).foregroundStyle(.secondary)
-          }.padding(.vertical, 8)
+          }.padding(.vertical, 4)
         }
         Text(L10n.text("使用者指定與 AI 自行選用都會計入；依實際呼叫、讀取或明確載入紀錄計算。"))
-          .font(.body).foregroundStyle(.secondary)
+          .foregroundStyle(Color.muted)
       }
       Section(L10n.text("資料品質")) {
         if model.snapshot.scanIncomplete == true {
@@ -150,7 +176,7 @@ struct SourcesView: View {
           L10n.text(
             "僅分析本機可讀紀錄。Antigravity 歷史紀錄只能確認讀取請求，無法配對結果時不增加確認讀取；未知格式與來源缺漏會暫停移除評估。")
         )
-        .font(.body).foregroundStyle(.secondary)
+        .foregroundStyle(Color.muted)
       }
       if model.snapshot.events.contains(where: { $0.skillID == nil }) {
         Section(L10n.text("未歸屬的歷史紀錄")) {
@@ -161,24 +187,23 @@ struct SourcesView: View {
           ) { target in
             let events = model.snapshot.events.filter { $0.skillID == nil && $0.target == target }
             VStack(alignment: .leading, spacing: 5) {
-              Text(target).font(.body.monospaced()).textSelection(.enabled)
+              Text(target).monospaced().textSelection(.enabled)
               Text(
                 L10n.format(
                   "%lld 次呼叫 · %lld 次確認讀取 · %lld 個上下文訊號",
                   events.filter { $0.evidence == .invocation }.count,
                   events.filter { $0.confirmed }.count,
                   events.filter { $0.evidence == .context }.count)
-              ).font(.body).foregroundStyle(.secondary)
+              ).foregroundStyle(Color.muted)
             }
           }
-          Text(L10n.text("明確操作仍納入概覽；安裝來源無法唯一對應時，不會歸入目前 Skills 的排行。")).font(.body).foregroundStyle(
-            .secondary)
+          Text(L10n.text("明確操作仍納入概覽；安裝來源無法唯一對應時，不會歸入目前 Skills 的排行。")).foregroundStyle(Color.muted)
         }
       }
       Section(L10n.text("專案 Skills")) {
         ForEach(model.snapshot.projectRoots, id: \.self) { path in
           LabeledContent(URL(fileURLWithPath: path).lastPathComponent) {
-            Text(path).font(.body.monospaced()).textSelection(.enabled)
+            Text(path).monospaced().textSelection(.enabled)
             Button {
               model.removeProject(path)
             } label: {
@@ -190,8 +215,8 @@ struct SourcesView: View {
         Button(L10n.text("加入專案資料夾"), systemImage: "folder.badge.plus") { model.addProject() }
           .disabled(
             model.scanning)
-        Text(L10n.text("只盤點加入專案內各工具約定的 Skills 目錄，不掃描整台電腦。")).font(.body)
-          .foregroundStyle(.secondary)
+        Text(L10n.text("只盤點加入專案內各工具約定的 Skills 目錄，不掃描整台電腦。"))
+          .foregroundStyle(Color.muted)
       }
     }.formStyle(.grouped)
   }
@@ -210,6 +235,7 @@ struct SourcesView: View {
 struct PreferencesView: View {
   @EnvironmentObject var model: AppModel
   @Environment(\.scenePhase) private var scenePhase
+  @AppStorage(TextSize.storageKey) private var textSize = TextSize.large
   @State private var confirmRebuild = false
   var body: some View {
     Form {
@@ -218,7 +244,7 @@ struct PreferencesView: View {
           L10n.text("登入時自動啟動"),
           isOn: Binding(get: { model.loginRequested }, set: { model.setLogin($0) }))
         Text(L10n.text("登入 Mac 後常駐選單列，不自動開啟統計視窗。"))
-          .font(.body).foregroundStyle(.secondary)
+          .foregroundStyle(Color.muted)
         if model.loginStatus == .requiresApproval {
           LabeledContent {
             Button(L10n.text("開啟系統設定"), systemImage: "arrow.up.forward.square") {
@@ -229,15 +255,16 @@ struct PreferencesView: View {
           }
         } else if model.loginStatus == .enabled {
           Label(L10n.text("已啟用登入時自動啟動"), systemImage: "checkmark.circle")
-            .font(.body).foregroundStyle(.secondary)
+            .foregroundStyle(Color.muted)
         }
         LabeledContent(L10n.text("更新方式"), value: L10n.text("啟動時更新，之後每小時一次"))
-        LabeledContent(L10n.text("外觀"), value: L10n.text("跟隨 macOS"))
+        Picker(L10n.text("文字大小"), selection: $textSize) {
+          ForEach(TextSize.allCases) { Text($0.title).tag($0) }
+        }.pickerStyle(.segmented)
       }
       Section(L10n.text("隱私與儲存")) {
         Label(L10n.text("所有分析都在這台 Mac 上完成"), systemImage: "lock.shield")
-        Text(L10n.text("資料庫只儲存事件摘要、來源定位與讀取進度，不儲存對話原文或工具輸出。")).foregroundStyle(
-          .secondary)
+        Text(L10n.text("資料庫只儲存事件摘要、來源定位與讀取進度，不儲存對話原文或工具輸出。")).foregroundStyle(Color.muted)
         LabeledContent(L10n.text("資料位置")) {
           Button(L10n.text("在 Finder 顯示"), systemImage: "folder") {
             model.reveal(model.directory.path)
@@ -249,12 +276,11 @@ struct PreferencesView: View {
           confirmRebuild = true
         }
         .disabled(model.scanning)
-        Text(L10n.text("重新讀取本機紀錄，保留重要標記與專案設定。觀察期會重新計算；來源紀錄不會變更。")).font(.body).foregroundStyle(
-          .secondary)
+        Text(L10n.text("重新讀取本機紀錄，保留重要標記與專案設定。觀察期會重新計算；來源紀錄不會變更。")).foregroundStyle(Color.muted)
       }
       Section(L10n.text("關於")) {
         LabeledContent("SkillGlance", value: L10n.format("%@ · 本機版本", "0.2.1"))
-        Text(L10n.text("移除建議僅供檢視；App 不會刪除 Skills。")).foregroundStyle(.secondary)
+        Text(L10n.text("移除建議僅供檢視；App 不會刪除 Skills。")).foregroundStyle(Color.muted)
       }
     }.formStyle(.grouped)
       .onAppear { model.refreshLoginStatus() }

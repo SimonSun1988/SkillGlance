@@ -35,6 +35,26 @@ private let resources = URL(fileURLWithPath: #filePath)
   }
 }
 
+@Test func everyInterfaceKeyHasATranslation() throws {
+  let sources = resources.deletingLastPathComponent()
+  let files = try FileManager.default.contentsOfDirectory(at: sources, includingPropertiesForKeys: nil)
+    .filter { $0.pathExtension == "swift" }
+  let call = try NSRegularExpression(pattern: #"L10n\.(?:text|format)\(\s*"((?:[^"\\]|\\.)*)""#)
+  var keys: Set<String> = []
+  for file in files {
+    let text = try String(contentsOf: file, encoding: .utf8)
+    for match in call.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
+      keys.insert((text as NSString).substring(with: match.range(at: 1)))
+    }
+  }
+  #expect(keys.count > 100)
+  let url = resources.appendingPathComponent("zh-Hant.lproj/Localizable.strings")
+  let catalog = try #require(
+    PropertyListSerialization.propertyList(from: Data(contentsOf: url), format: nil)
+      as? [String: String])
+  for key in keys.sorted() { #expect(catalog[key] != nil, "Missing translation: \(key)") }
+}
+
 @Test func nativeLanguageMatchingSupportsRegionalChineseAndEnglishFallback() {
   let available = ["en", "zh-Hans", "zh-Hant"]
   for (preference, expected) in [

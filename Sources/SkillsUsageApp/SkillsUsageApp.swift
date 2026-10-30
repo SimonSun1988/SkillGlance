@@ -11,10 +11,14 @@ import SwiftUI
     }
     .menuBarExtraStyle(.window)
     Window("SkillGlance", id: "main") {
-      MainView().environmentObject(model).environment(\.locale, L10n.locale)
+      MainView().environmentObject(model).environment(\.locale, L10n.locale).scaledText()
     }
       .defaultSize(width: 1280, height: 820).windowStyle(.automatic).windowToolbarStyle(
         .unifiedCompact)
+    Settings {
+      PreferencesView().environmentObject(model).environment(\.locale, L10n.locale).scaledText()
+        .frame(width: 560, height: 620)
+    }
   }
 }
 struct MenuPanel: View {
@@ -29,7 +33,7 @@ struct MenuPanel: View {
         }.font(.title3.weight(.semibold))
         Spacer()
         Image(systemName: model.scanning ? "arrow.triangle.2.circlepath" : "checkmark.circle")
-          .foregroundStyle(.secondary)
+          .foregroundStyle(Color.muted)
       }
       HStack(spacing: 24) {
         Metric(
@@ -43,7 +47,7 @@ struct MenuPanel: View {
         Label(L10n.text("活躍 Skills"), systemImage: "waveform.path")
         Spacer()
         Text("\(model.menuSummary.activeSkills)").monospacedDigit()
-        Text(L10n.text("／最近 90 天")).foregroundStyle(.secondary)
+        Text(L10n.text("／最近 90 天")).foregroundStyle(Color.muted)
       }.font(.body)
       Divider()
       ForEach(model.menuRows.filter { $0.conversations > 0 }.prefix(3)) { row in
@@ -51,17 +55,17 @@ struct MenuPanel: View {
           Text(row.skill.name).lineLimit(1)
           Spacer()
           Text("\(row.conversations)").monospacedDigit()
-          Image(systemName: "bubble.left.and.bubble.right").foregroundStyle(.secondary)
+          Image(systemName: "bubble.left.and.bubble.right").foregroundStyle(Color.muted)
         }.font(.title3)
       }
       if model.scanning {
         ProgressView(value: model.progress)
-        Text(model.progressText).font(.body).foregroundStyle(.secondary)
+        Text(model.progressText).font(.body).foregroundStyle(Color.muted)
       } else {
         Label(
           model.snapshot.issues.isEmpty ? L10n.text("本機分析 · 最近 90 天") : L10n.text("部分證據待確認"),
           systemImage: model.snapshot.issues.isEmpty ? "lock" : "exclamationmark.circle"
-        ).font(.body).foregroundStyle(.secondary)
+        ).font(.body).foregroundStyle(Color.muted)
       }
       HStack {
         Button(L10n.text("開啟統計")) {
@@ -74,6 +78,7 @@ struct MenuPanel: View {
         } label: {
           Image(systemName: "arrow.clockwise")
         }.help(L10n.text("重新整理")).accessibilityLabel(L10n.text("重新整理")).disabled(model.scanning)
+        SettingsButton().labelStyle(.iconOnly)
         Button {
           NSApp.terminate(nil)
         } label: {

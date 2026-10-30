@@ -10,6 +10,10 @@ import SwiftUI
   @Published private(set) var menuSummary = UsageSummary()
   @Published var catalogScope = "all" { didSet { updateRows() } }
   @Published private(set) var menuRows: [UsageRow] = []
+  @Published private(set) var candidateCount = 0
+  // User-installed Skills over the fixed 90-day removal window, independent of filters.
+  @Published private(set) var userSkills = 0
+  @Published private(set) var unusedUserSkills = 0
   @Published var scanning = false { didSet { updateRows() } }
   @Published var automaticUpdatesPaused = false
   @Published var progress = 0.0
@@ -66,6 +70,10 @@ import SwiftUI
     summary = UsageMetrics.summary(
       filtered.events.filter { $0.time >= since && (platform == nil || $0.platform == platform) })
     menuRows = UsageMetrics.rows(snapshot, since: Date().addingTimeInterval(-90 * 86400))
+    let user = menuRows.filter { $0.skill.installed && !$0.skill.managed && !$0.skill.cacheOnly }
+    userSkills = user.count
+    unusedUserSkills = user.filter { $0.conversations == 0 }.count
+    candidateCount = scanning ? 0 : eligibility.values.filter(\.0).count
     rows = UsageMetrics.rows(filtered, since: since, platform: platform).map { row in
       var row = row
       row.candidate = !scanning && (eligibility[row.id]?.0 ?? false)
@@ -179,7 +187,7 @@ import SwiftUI
   }
 }
 enum Page: String, CaseIterable, Identifiable {
-  case skills, protected, candidates, sources, settings
+  case skills, protected, candidates, sources
   var id: Self { self }
   var title: String {
     switch self {
@@ -187,7 +195,6 @@ enum Page: String, CaseIterable, Identifiable {
     case .protected: L10n.text("保護中")
     case .candidates: L10n.text("移除建議")
     case .sources: L10n.text("資料來源")
-    case .settings: L10n.text("設定")
     }
   }
   var icon: String {
@@ -196,7 +203,6 @@ enum Page: String, CaseIterable, Identifiable {
     case .protected: "shield"
     case .candidates: "archivebox"
     case .sources: "externaldrive"
-    case .settings: "gearshape"
     }
   }
 }
