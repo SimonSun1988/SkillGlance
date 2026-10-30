@@ -84,13 +84,17 @@ struct MainView: View {
   }
 }
 
-// The app runs as a menu bar accessory, so it must come forward before the Settings window opens.
+// In a menu bar accessory app, SettingsLink and the showSettingsWindow: action open nothing.
+// Bring the app forward first, then ask SwiftUI for the Settings window directly.
 struct SettingsButton: View {
+  @Environment(\.openSettings) private var openSettings
   var body: some View {
-    SettingsLink {
+    Button {
+      NSApp.activate(ignoringOtherApps: true)
+      openSettings()
+    } label: {
       Label(L10n.text("設定"), systemImage: "gearshape")
-    }.simultaneousGesture(TapGesture().onEnded { NSApp.activate(ignoringOtherApps: true) })
-      .help(L10n.text("設定"))
+    }.help(L10n.text("設定"))
   }
 }
 
