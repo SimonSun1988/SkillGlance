@@ -2,18 +2,44 @@ import Foundation
 
 public enum SkillIdentity {
   public static func resolve(_ target: String, catalog: [Skill]) -> String? {
-    let path = URL(fileURLWithPath: target).deletingLastPathComponent().path
-    let canonical = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
-    let name = target.split(separator: ":").last.map(String.init) ?? target
-    let matches = catalog.filter { skill in
-      if target.hasSuffix("/SKILL.md") {
-        return skill.path == canonical || skill.aliases.contains(path)
+    Index(catalog).resolve(target)
+  }
+
+  // Lookup tables over one catalog, so resolving many events does not rescan every Skill.
+  public struct Index {
+    private let catalog: [Skill]
+    private var paths: [String: Set<Int>] = [:]
+    private var aliases: [String: Set<Int>] = [:]
+    private var names: [String: Set<Int>] = [:]
+    private var aliasNames: [String: Set<Int>] = [:]
+
+    public init(_ catalog: [Skill]) {
+      self.catalog = catalog
+      for (index, skill) in catalog.enumerated() {
+        paths[skill.path, default: []].insert(index)
+        names[skill.name, default: []].insert(index)
+        if let declared = skill.declaredName { names[declared, default: []].insert(index) }
+        for alias in skill.aliases {
+          aliases[alias, default: []].insert(index)
+          aliasNames[URL(fileURLWithPath: alias).lastPathComponent, default: []].insert(index)
+        }
       }
-      return skill.name == target || skill.name == name || skill.declaredName == target
-        || skill.declaredName == name
-        || skill.aliases.contains { URL(fileURLWithPath: $0).lastPathComponent == name }
     }
-    return matches.count == 1 ? matches[0].id : nil
+
+    // A target names one Skill only when exactly one catalog entry matches it.
+    public func resolve(_ target: String) -> String? {
+      let matches: Set<Int>
+      if target.hasSuffix("/SKILL.md") {
+        let path = URL(fileURLWithPath: target).deletingLastPathComponent().path
+        let canonical = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+        matches = paths[canonical, default: []].union(aliases[path, default: []])
+      } else {
+        let name = target.split(separator: ":").last.map(String.init) ?? target
+        matches = names[target, default: []].union(names[name, default: []])
+          .union(aliasNames[name, default: []])
+      }
+      return matches.count == 1 ? catalog[matches.first!].id : nil
+    }
   }
 
   // A path target is named by its directory; a namespaced target `a:b` by `b`.

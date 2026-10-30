@@ -61,6 +61,8 @@ enum CursorSource {
           scan.issue("Cursor 紀錄超過本次掃描上限")
           break
         }
+        // Only a record that names a SKILL.md can carry Skill evidence; skip decoding the rest.
+        guard mentionsSkillFile(data) else { continue }
         guard let bubble = dictionary(data) else {
           scan.issue()
           continue
@@ -160,6 +162,14 @@ enum CursorSource {
     else { return false }
     let value = number.doubleValue
     return value.isFinite && value > 0 && value.rounded(.down) == value
+  }
+
+  static func mentionsSkillFile(_ data: Data) -> Bool {
+    let needle = Array("SKILL.md".utf8)
+    return data.withUnsafeBytes { raw in
+      guard let base = raw.baseAddress else { return false }
+      return memmem(base, raw.count, needle, needle.count) != nil
+    }
   }
 
   private static func dictionary(_ value: Any?) -> [String: Any]? {

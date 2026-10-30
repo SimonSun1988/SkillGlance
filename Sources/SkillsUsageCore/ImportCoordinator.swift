@@ -277,11 +277,12 @@ public actor ImportCoordinator {
       checkpoints.values.filter { !$0.state.session.isEmpty }.map {
         ($0.state.session, $0.state.group)
       }, uniquingKeysWith: { a, b in a == b ? a : (a.isEmpty ? b : a) })
+    let identity = SkillIdentity.Index(snapshot.skills)
+    var resolved: [String: String?] = [:]
     snapshot.events = events.values.map { original in
       var event = original
-      event.skillID =
-        event.conflicted == true
-        ? nil : SkillIdentity.resolve(event.target, catalog: snapshot.skills)
+      if resolved[event.target] == nil { resolved[event.target] = identity.resolve(event.target) }
+      event.skillID = event.conflicted == true ? nil : resolved[event.target]!
       if locations[event.cwd] == nil {
         locations[event.cwd] = ProjectResolver.resolve(event.cwd, roots: snapshot.projectRoots)
       }

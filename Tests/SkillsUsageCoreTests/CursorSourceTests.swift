@@ -288,3 +288,19 @@ private final class CursorFixture {
   #expect(rows.first { $0.skill.name == "other" }?.candidate == true)
   #expect(rows.first { $0.skill.name == "example" }?.candidate == false)
 }
+
+@Test func cursorDecodesOnlyRecordsThatNameASkillFile() throws {
+  let fixture = try CursorFixture()
+  defer { fixture.remove() }
+  try fixture.composer()
+  try fixture.bubble("a", call: "read")
+  try fixture.insert(
+    "INSERT INTO cursorDiskKV VALUES(?,?)", values: ["bubbleId:composer:chat", "{not json"])
+  let quiet = try CursorSource.scan(home: fixture.home, catalog: [])
+  #expect(quiet.events.count == 1)
+  #expect(quiet.status.issues == 0)
+  try fixture.insert(
+    "INSERT INTO cursorDiskKV VALUES(?,?)",
+    values: ["bubbleId:composer:broken", "{\"path\": \"/skills/x/SKILL.md\""])
+  #expect(try CursorSource.scan(home: fixture.home, catalog: []).status.issues == 1)
+}

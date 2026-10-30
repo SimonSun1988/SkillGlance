@@ -137,3 +137,46 @@ import Testing
   #expect(second.blockedNames?["clean-code"] != nil)
   #expect(second.issues.isEmpty)
 }
+
+@Test func identityIndexMatchesTheCatalogScanForEveryKindOfTarget() throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let real = root.appendingPathComponent("real/linked")
+  try FileManager.default.createDirectory(at: real, withIntermediateDirectories: true)
+  try FileManager.default.createSymbolicLink(
+    at: root.appendingPathComponent("link"), withDestinationURL: real)
+  func skill(_ path: String, aliases: [String], declared: String? = nil) -> Skill {
+    Skill(DiscoveredSkill(path: path, aliases: aliases, declaredName: declared), now: Date())
+  }
+  let catalog = [
+    skill(real.path, aliases: [root.appendingPathComponent("link").path]),
+    skill("/a/unique", aliases: ["/a/unique"], declared: "pretty-name"),
+    skill("/a/twin", aliases: ["/a/twin"]), skill("/b/twin", aliases: ["/b/twin"]),
+    skill("/c/plain", aliases: ["/c/alias-dir"]),
+  ]
+  // The original rule: exactly one catalog entry may match the target.
+  func scanned(_ target: String) -> String? {
+    let path = URL(fileURLWithPath: target).deletingLastPathComponent().path
+    let canonical = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+    let name = target.split(separator: ":").last.map(String.init) ?? target
+    let matches = catalog.filter { skill in
+      if target.hasSuffix("/SKILL.md") {
+        return skill.path == canonical || skill.aliases.contains(path)
+      }
+      return skill.name == target || skill.name == name || skill.declaredName == target
+        || skill.declaredName == name
+        || skill.aliases.contains { URL(fileURLWithPath: $0).lastPathComponent == name }
+    }
+    return matches.count == 1 ? matches[0].id : nil
+  }
+  let targets = [
+    real.appendingPathComponent("SKILL.md").path,
+    root.appendingPathComponent("link/SKILL.md").path, "/a/unique/SKILL.md", "/a/twin/SKILL.md",
+    "/nowhere/SKILL.md", "unique", "pretty-name", "plugin:pretty-name", "twin", "plugin:twin",
+    "alias-dir", "plain", "missing", "a:b:unique", "",
+  ]
+  let index = SkillIdentity.Index(catalog)
+  for target in targets { #expect(index.resolve(target) == scanned(target), "\(target)") }
+  #expect(index.resolve("twin") == nil)
+  #expect(index.resolve("pretty-name") == catalog[1].id)
+}
