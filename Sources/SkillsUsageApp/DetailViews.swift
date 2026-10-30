@@ -283,7 +283,7 @@ struct PreferencesView: View {
         Text(L10n.text("重新讀取本機紀錄，保留重要標記與專案設定。觀察期會重新計算；來源紀錄不會變更。")).foregroundStyle(Color.muted)
       }
       Section(L10n.text("關於")) {
-        LabeledContent("SkillGlance", value: L10n.format("%@ · 本機版本", "0.3.0"))
+        LabeledContent("SkillGlance", value: L10n.format("%@ · 本機版本", "0.3.1"))
         Text(L10n.text("移除建議僅供檢視；App 不會刪除 Skills。")).foregroundStyle(Color.muted)
       }
     }.formStyle(.grouped)
