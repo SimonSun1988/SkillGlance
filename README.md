@@ -2,11 +2,11 @@
 
 常駐 macOS 選單列的 Skills 使用統計工具。整合多種 AI 工具的本機紀錄，分開呈現呼叫、已確認讀取與結果未知的請求，並保留來源供查閱。
 
-[繁體中文官網](https://simonsun1988.github.io/SkillGlance/zh-Hant/) · [English](https://simonsun1988.github.io/SkillGlance/) · [简体中文](https://simonsun1988.github.io/SkillGlance/zh-Hans/) · [下載 0.2.1 測試版](https://github.com/SimonSun1988/SkillGlance/releases/tag/v0.2.1) · [Changelog](CHANGELOG.md)
+[繁體中文官網](https://simonsun1988.github.io/SkillGlance/zh-Hant/) · [English](https://simonsun1988.github.io/SkillGlance/) · [简体中文](https://simonsun1988.github.io/SkillGlance/zh-Hans/) · [下載 0.3.0 測試版](https://github.com/SimonSun1988/SkillGlance/releases/tag/v0.3.0) · [Changelog](CHANGELOG.md)
 
 ## 目前版本
 
-**0.2.1 Beta（Pre-release）**，適用於 Apple Silicon Mac，系統需求設定為 macOS 14 或以上版本。實機測試僅涵蓋執行 macOS 27.0.1 的開發用 Mac。
+**0.3.0 Beta（Pre-release）**，適用於 Apple Silicon Mac，系統需求設定為 macOS 14 或以上版本。實機測試僅涵蓋執行 macOS 27.0.1 的開發用 Mac。
 
 App 與官網提供英文、簡體中文、繁體中文。App 依 macOS 的語言偏好顯示。
 
@@ -37,17 +37,17 @@ App 與官網提供英文、簡體中文、繁體中文。App 依 macOS 的語�
 
 ## 安裝與更新
 
-1. 從 [GitHub Releases](https://github.com/SimonSun1988/SkillGlance/releases/tag/v0.2.1) 下載 `SkillGlance-0.2.1-arm64.dmg` 與同名 `.sha256` 檔案。
+1. 從 [GitHub Releases](https://github.com/SimonSun1988/SkillGlance/releases/tag/v0.3.0) 下載 `SkillGlance-0.3.0-arm64.dmg` 與同名 `.sha256` 檔案。
 2. 在下載目錄執行檢查碼驗證：
 
    ```sh
-   shasum -a 256 -c SkillGlance-0.2.1-arm64.dmg.sha256
+   shasum -a 256 -c SkillGlance-0.3.0-arm64.dmg.sha256
    ```
 
 3. 若已安裝舊版，先結束 SkillGlance，並備份下方的資料目錄。
 4. 開啟 DMG，將 SkillGlance 拖入 Applications（應用程式）資料夾。更新時替換舊 App，再從該資料夾開啟。
 
-0.2.1 沿用原本的資料目錄，替換 App 不會清除統計資料。更新後會載入既有統計，再掃描新增的紀錄。
+0.3.0 沿用原本的資料目錄，替換 App 不會清除統計資料。更新後第一次掃描會重新讀取所有紀錄一次（約 20 秒），不會重建統計。
 
 ## 資料與隱私
 
