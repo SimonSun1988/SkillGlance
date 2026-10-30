@@ -60,7 +60,6 @@
 "找不到可讀紀錄" = "No readable logs found";
 "掃描中，暫停評估" = "Scanning · assessment paused";
 "搜尋 Skills" = "Search Skills";
-"新加入的 Skills 需觀察 90 天；有資料缺漏時會暫停評估。" = "Newly discovered Skills require 90 days of observation. Assessment pauses if data is incomplete.";
 "明確操作仍納入概覽；安裝來源無法唯一對應時，不會歸入目前 Skills 的排行。" = "Explicit actions remain in the overview. Records without a unique installation match are excluded from current Skills rankings.";
 "更新完成" = "Up to date";
 "更新方式" = "Updates";
@@ -93,7 +92,6 @@
 "登入時自動啟動" = "Launch at login";
 "目前安裝" = "Installed now";
 "目前沒有已知匯入錯誤" = "No known import errors";
-"目前沒有移除建議" = "No removal suggestions yet";
 "目前沒有符合的 Skills" = "No matching Skills";
 "確認讀取" = "Confirmed reads";
 "移除建議" = "Removal suggestions";
@@ -190,7 +188,6 @@
 "你安裝的 %lld 個 Skill，近 90 天都有使用紀錄。" = "All %lld Skills you installed have recorded use in the last 90 days.";
 "使用中的 Skills" = "Skills in use";
 "剩 %lld 天" = "%lld days left";
-"完整觀察 90 天且沒有使用訊號的 Skill，才會列在這裡。" = "Only Skills with a full 90-day observation and no use signal appear here.";
 "尚未找到你安裝的 Skill。" = "No Skills you installed were found yet.";
 "已滿 90 天" = "90 days observed";
 "活躍對話" = "Active chats";
@@ -207,3 +204,13 @@
 "部分提及 SKILL.md 的紀錄無法解析，且未指出特定 Skill" = "Some records that mention SKILL.md could not be parsed and do not name a specific Skill.";
 "可能屬於此 Skill 的紀錄尚無法確認，暫停評估" = "Records that may belong to this Skill are unconfirmed · paused";
 "部分 Skill 紀錄尚無法確認" = "Some Skill records could not be confirmed yet.";
+"%lld 個 Skill 完整觀察 90 天，且沒有使用訊號。" = "%lld Skills were observed for a full 90 days with no use signal.";
+"可建議移除" = "Can be removed";
+"暫停評估" = "Paused";
+"狀態" = "Status";
+"目前沒有移除建議。" = "No removal suggestions yet.";
+"目前沒有移除建議。最早在 %@ 會有 Skill 完成 90 天觀察。" = "No removal suggestions yet. The first Skills complete their 90-day observation on %@.";
+"觀察中" = "Observing";
+"近 90 天有使用" = "Used in 90 days";
+"這一類目前沒有 Skill" = "No Skills in this group";
+"部分來源無法完整讀取，所有 Skill 暫停評估。" = "Some sources could not be read completely, so assessment is paused for all Skills.";

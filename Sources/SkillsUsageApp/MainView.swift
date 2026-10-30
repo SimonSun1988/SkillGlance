@@ -28,6 +28,8 @@ struct MainView: View {
         }
         if model.page == .sources {
           SourcesView()
+        } else if model.page == .candidates {
+          AssessmentView()
         } else {
           SkillsView()
         }
@@ -171,40 +173,25 @@ struct SkillsView: View {
           Text(finding).font(.system(size: base + 2))
         }
         Spacer()
-        if model.page != .candidates {
-          Picker(L10n.text("期間"), selection: $model.days) {
-            Text(L10n.text("7 天")).tag(7)
-            Text(L10n.text("30 天")).tag(30)
-            Text(L10n.text("90 天")).tag(90)
-            Text(L10n.text("全部")).tag(0)
-          }.labelsHidden().pickerStyle(.segmented).frame(width: 240)
-        }
+        Picker(L10n.text("期間"), selection: $model.days) {
+          Text(L10n.text("7 天")).tag(7)
+          Text(L10n.text("30 天")).tag(30)
+          Text(L10n.text("90 天")).tag(90)
+          Text(L10n.text("全部")).tag(0)
+        }.labelsHidden().pickerStyle(.segmented).frame(width: 240)
       }
-      if model.page != .candidates {
-        HStack(spacing: 44) {
-          Figure(value: model.summary.activeSkills, title: L10n.text("使用中的 Skills"))
-          Figure(value: model.summary.conversations, title: L10n.text("活躍對話"))
-          Figure(value: model.summary.invocations, title: L10n.text("呼叫"))
-          Figure(value: model.summary.reads, title: L10n.text("確認讀取"))
-        }
-        filters
+      HStack(spacing: 44) {
+        Figure(value: model.summary.activeSkills, title: L10n.text("使用中的 Skills"))
+        Figure(value: model.summary.conversations, title: L10n.text("活躍對話"))
+        Figure(value: model.summary.invocations, title: L10n.text("呼叫"))
+        Figure(value: model.summary.reads, title: L10n.text("確認讀取"))
       }
-      if !model.snapshot.issues.isEmpty || model.snapshot.scanIncomplete == true {
-        Button {
-          model.page = .sources
-        } label: {
-          Label(
-            L10n.text("部分證據待確認，移除評估暫停。查看資料來源"),
-            systemImage: "exclamationmark.triangle.fill")
-        }.buttonStyle(.link).foregroundStyle(.orange).help(L10n.text("查看資料來源與限制"))
-      }
+      filters
+      PauseNotice()
       if rows.isEmpty {
         ContentUnavailableView(
-          model.page == .candidates ? L10n.text("目前沒有移除建議") : L10n.text("目前沒有符合的 Skills"),
-          systemImage: model.page == .candidates ? "checkmark.shield" : "magnifyingglass",
-          description: Text(
-            model.page == .candidates
-              ? L10n.text("新加入的 Skills 需觀察 90 天；有資料缺漏時會暫停評估。") : L10n.text("等待匯入完成，或調整搜尋條件。"))
+          L10n.text("目前沒有符合的 Skills"), systemImage: "magnifyingglass",
+          description: Text(L10n.text("等待匯入完成，或調整搜尋條件。"))
         ).frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
         table
@@ -217,8 +204,6 @@ struct SkillsView: View {
     switch model.page {
     case .protected:
       L10n.format("%lld 個 Skill 受到保護，不會列入移除建議。", rows.count)
-    case .candidates:
-      L10n.text("完整觀察 90 天且沒有使用訊號的 Skill，才會列在這裡。")
     default:
       model.userSkills == 0
         ? L10n.text("尚未找到你安裝的 Skill。")
@@ -315,6 +300,129 @@ struct SkillsView: View {
   private func observation(_ row: UsageRow) -> String {
     if row.skill.important || row.skill.managed { return L10n.text("保護中") }
     if row.candidate { return L10n.text("移除建議") }
+    let left = 90 - Int(Date().timeIntervalSince(row.skill.observedAt) / 86400)
+    return left > 0 ? L10n.format("剩 %lld 天", left) : L10n.text("已滿 90 天")
+  }
+}
+
+// Shown while a source failure pauses removal assessment for every Skill.
+struct PauseNotice: View {
+  @EnvironmentObject var model: AppModel
+  var body: some View {
+    if !model.snapshot.issues.isEmpty || model.snapshot.scanIncomplete == true {
+      Button {
+        model.page = .sources
+      } label: {
+        Label(
+          L10n.text("部分證據待確認，移除評估暫停。查看資料來源"),
+          systemImage: "exclamationmark.triangle.fill")
+      }.buttonStyle(.link).foregroundStyle(.orange).help(L10n.text("查看資料來源與限制"))
+    }
+  }
+}
+
+enum AssessmentStage: CaseIterable, Identifiable {
+  case candidate, observing, active, paused
+  var id: Self { self }
+  var title: String {
+    switch self {
+    case .candidate: L10n.text("可建議移除")
+    case .observing: L10n.text("觀察中")
+    case .active: L10n.text("近 90 天有使用")
+    case .paused: L10n.text("暫停評估")
+    }
+  }
+  // Reasons come untranslated from UsageMetrics.
+  static func of(_ row: UsageRow, cutoff: Date) -> Self {
+    if row.candidate { return .candidate }
+    if row.reason == "近 90 天有使用或嘗試訊號" || (row.lastUsed ?? .distantPast) >= cutoff {
+      return .active
+    }
+    if row.reason == "觀察未滿 90 天" { return .observing }
+    return .paused
+  }
+}
+
+struct AssessmentView: View {
+  @EnvironmentObject var model: AppModel
+  @Environment(\.textBase) private var base
+  @State private var stage: AssessmentStage?
+  var body: some View {
+    let cutoff = Date().addingTimeInterval(-90 * 86400)
+    let groups = Dictionary(grouping: model.assessment) { AssessmentStage.of($0, cutoff: cutoff) }
+    let shown = stage ?? (groups[.candidate] == nil ? .observing : .candidate)
+    let rows = (groups[shown] ?? []).sorted {
+      $0.skill.observedAt == $1.skill.observedAt
+        ? $0.skill.name < $1.skill.name : $0.skill.observedAt < $1.skill.observedAt
+    }
+    VStack(alignment: .leading, spacing: 18) {
+      VStack(alignment: .leading, spacing: 4) {
+        Text(Page.candidates.title).font(.system(size: base + 7, weight: .bold))
+        Text(finding(groups)).font(.system(size: base + 2))
+      }
+      HStack(spacing: 44) {
+        ForEach(AssessmentStage.allCases) { item in
+          Figure(value: groups[item]?.count ?? 0, title: item.title)
+        }
+      }
+      PauseNotice()
+      Picker(L10n.text("狀態"), selection: Binding(get: { shown }, set: { stage = $0 })) {
+        ForEach(AssessmentStage.allCases) { Text($0.title).tag($0) }
+      }.labelsHidden().pickerStyle(.segmented).frame(maxWidth: 520)
+      if rows.isEmpty {
+        ContentUnavailableView(
+          L10n.text("這一類目前沒有 Skill"), systemImage: "checkmark.shield"
+        ).frame(maxWidth: .infinity, maxHeight: .infinity)
+      } else {
+        Table(rows, selection: $model.selection) {
+          // Within one stage the reason repeats, except for paused Skills, which state theirs.
+          TableColumn("Skill") { row in
+            HStack(spacing: 8) {
+              Text(row.skill.name).fontWeight(.medium).lineLimit(1)
+              if shown == .paused {
+                Text(L10n.message(row.reason)).foregroundStyle(Color.muted).lineLimit(1)
+              }
+            }.help(L10n.message(row.reason))
+          }.width(min: 240, ideal: 460)
+          TableColumn(L10n.text("開始觀察")) { row in
+            Text(row.skill.observedAt, format: .dateTime.year().month().day())
+              .foregroundStyle(Color.muted)
+          }.width(min: 110, ideal: 130)
+          TableColumn(L10n.text("觀察")) { row in
+            Text(remaining(row)).foregroundStyle(Color.muted).monospacedDigit()
+          }.width(min: 80, ideal: 100)
+          TableColumn(L10n.text("最近使用")) { row in
+            if let date = row.lastUsed {
+              Text(date, format: Date.RelativeFormatStyle(presentation: .numeric))
+                .foregroundStyle(Color.muted)
+            } else {
+              Text("—").foregroundStyle(.tertiary).accessibilityLabel(L10n.text("尚無確認紀錄"))
+            }
+          }.width(min: 90, ideal: 120)
+        }.tableStyle(.inset(alternatesRowBackgrounds: false))
+          .onChange(of: model.selection) { _, value in model.showDetail = value != nil }
+        Text(L10n.format("%lld Skills", rows.count)).foregroundStyle(Color.muted)
+      }
+    }.padding(.horizontal, 28).padding(.vertical, 22)
+  }
+
+  private func finding(_ groups: [AssessmentStage: [UsageRow]]) -> String {
+    if let count = groups[.candidate]?.count {
+      return L10n.format("%lld 個 Skill 完整觀察 90 天，且沒有使用訊號。", count)
+    }
+    if !model.snapshot.issues.isEmpty || model.snapshot.scanIncomplete == true {
+      return L10n.text("部分來源無法完整讀取，所有 Skill 暫停評估。")
+    }
+    guard let first = groups[.observing]?.map(\.skill.observedAt).min() else {
+      return L10n.text("目前沒有移除建議。")
+    }
+    return L10n.format(
+      "目前沒有移除建議。最早在 %@ 會有 Skill 完成 90 天觀察。",
+      first.addingTimeInterval(90 * 86400).formatted(
+        Date.FormatStyle(date: .long, time: .omitted).locale(L10n.locale)))
+  }
+
+  private func remaining(_ row: UsageRow) -> String {
     let left = 90 - Int(Date().timeIntervalSince(row.skill.observedAt) / 86400)
     return left > 0 ? L10n.format("剩 %lld 天", left) : L10n.text("已滿 90 天")
   }
