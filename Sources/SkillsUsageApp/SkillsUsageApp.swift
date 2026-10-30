@@ -5,12 +5,14 @@ import SwiftUI
   @StateObject private var model = AppModel()
   var body: some Scene {
     MenuBarExtra {
-      MenuPanel().environmentObject(model)
+      MenuPanel().environmentObject(model).environment(\.locale, L10n.locale)
     } label: {
       Image(nsImage: BrandAssets.menuBarImage).accessibilityLabel("SkillGlance")
     }
     .menuBarExtraStyle(.window)
-    Window("SkillGlance", id: "main") { MainView().environmentObject(model) }
+    Window("SkillGlance", id: "main") {
+      MainView().environmentObject(model).environment(\.locale, L10n.locale)
+    }
       .defaultSize(width: 1280, height: 820).windowStyle(.automatic).windowToolbarStyle(
         .unifiedCompact)
   }

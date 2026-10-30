@@ -47,6 +47,17 @@ private let resources = URL(fileURLWithPath: #filePath)
   }
 }
 
+@Test func dateLocaleFollowsTheResolvedStringLanguage() {
+  let taiwan = Locale(identifier: "zh_TW")
+  #expect(L10n.locale(language: "zh-Hant", current: taiwan) == taiwan)
+  #expect(L10n.locale(language: "en", current: taiwan).identifier == "en_TW")
+  #expect(L10n.locale(language: "zh-Hans", current: taiwan).identifier == "zh-Hans_TW")
+  // A Japanese system falls back to English strings, so dates must not stay Japanese.
+  let japan = Locale(identifier: "ja_JP")
+  #expect(L10n.locale(language: "en", current: japan).language.languageCode == "en")
+  #expect(L10n.locale(language: nil, current: japan) == japan)
+}
+
 @Test func storedDiagnosticsAreTranslatedWithoutTreatingPathsAsMessages() throws {
   let root = try #require(L10n.bundle.resourceURL)
   let english = try #require(Bundle(url: root.appendingPathComponent("en.lproj")))

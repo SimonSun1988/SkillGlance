@@ -32,7 +32,7 @@ struct SkillDetail: View {
         }
         Divider()
         VStack(alignment: .leading, spacing: 8) {
-          Text(L10n.text("安裝來源")).font(.title3.weight(.semibold))
+          Text(L10n.text("安裝來源")).font(.headline)
           Text(row.skill.path).font(.body.monospaced()).foregroundStyle(.secondary)
             .textSelection(.enabled)
           Button(L10n.text("在 Finder 中顯示"), systemImage: "folder") { model.reveal(row.skill.path) }
@@ -43,15 +43,15 @@ struct SkillDetail: View {
           Text("\(row.failures)")
           Label(L10n.text("未知"), systemImage: "questionmark.circle")
           Text("\(row.unknown)")
-        }.font(.title3).foregroundStyle(.secondary)
-        LabeledContent(L10n.text("開始觀察")) { Text(row.skill.observedAt, style: .date) }.font(.title3)
+        }.foregroundStyle(.secondary)
+        LabeledContent(L10n.text("開始觀察")) { Text(row.skill.observedAt, style: .date) }
         if row.skill.aliases.count > 1 {
           Text(L10n.format("%lld 個路徑連到同一來源，已合併計算。", row.skill.aliases.count)).font(.body)
             .foregroundStyle(
               .secondary)
         }
         Divider()
-        Text(L10n.text("使用紀錄")).font(.title3.weight(.semibold))
+        Text(L10n.text("使用紀錄")).font(.headline)
         if events.isEmpty { Text(L10n.text("尚無可歸屬紀錄")).foregroundStyle(.secondary) }
         ForEach(events.prefix(60)) { event in
           VStack(alignment: .leading, spacing: 7) {
@@ -67,7 +67,7 @@ struct SkillDetail: View {
                   : event.outcome == .failure ? L10n.text("失敗") : L10n.text("結果未知")
               )
               .foregroundStyle(.secondary)
-            }.font(.title3)
+            }
             HStack {
               Text(event.platform.label)
               Spacer()
@@ -107,7 +107,7 @@ struct SourcesView: View {
           HStack(alignment: .top, spacing: 14) {
             Image(systemName: "terminal").font(.title2).foregroundStyle(.tint).frame(width: 32)
             VStack(alignment: .leading, spacing: 6) {
-              Text(platform.label).font(.title3.weight(.semibold))
+              Text(platform.label).font(.headline)
               Text(sourceDescription(platform)).font(.body).foregroundStyle(.secondary)
               Text(
                 source.map {
@@ -115,7 +115,7 @@ struct SourcesView: View {
                     "%lld 個紀錄檔 · %@", $0.files,
                     ByteCountFormatter.string(fromByteCount: $0.bytes, countStyle: .file))
                 } ?? L10n.text("等待首次匯入")
-              ).font(.title3)
+              )
               Text(L10n.message(source?.message ?? "未掃描")).font(.body).foregroundStyle(.secondary)
             }
             Spacer()
@@ -144,7 +144,7 @@ struct SourcesView: View {
           Label(L10n.text("目前沒有已知匯入錯誤"), systemImage: "checkmark.circle")
         }
         ForEach(model.snapshot.issues, id: \.self) {
-          Label(L10n.message($0), systemImage: "exclamationmark.circle").font(.title3)
+          Label(L10n.message($0), systemImage: "exclamationmark.circle")
         }
         Text(
           L10n.text(
@@ -236,7 +236,7 @@ struct PreferencesView: View {
       }
       Section(L10n.text("隱私與儲存")) {
         Label(L10n.text("所有分析都在這台 Mac 上完成"), systemImage: "lock.shield")
-        Text(L10n.text("資料庫只儲存事件摘要、來源定位與讀取進度，不儲存對話原文或工具輸出。")).font(.title3).foregroundStyle(
+        Text(L10n.text("資料庫只儲存事件摘要、來源定位與讀取進度，不儲存對話原文或工具輸出。")).foregroundStyle(
           .secondary)
         LabeledContent(L10n.text("資料位置")) {
           Button(L10n.text("在 Finder 顯示"), systemImage: "folder") {

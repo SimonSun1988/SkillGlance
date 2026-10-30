@@ -43,7 +43,7 @@ struct MainView: View {
             Label(L10n.text("自動更新已暫停"), systemImage: "pause.circle").foregroundStyle(.secondary)
             Spacer()
             Button(L10n.text("繼續")) { model.refresh() }
-          }.font(.title3).padding(.horizontal, 24).padding(.vertical, 8)
+          }.padding(.horizontal, 24).padding(.vertical, 8)
           Divider()
         }
         if model.page == .sources {
@@ -55,8 +55,6 @@ struct MainView: View {
         }
       }
     }
-    .font(.title3)
-    .controlSize(.large)
     .frame(minWidth: 1080, minHeight: 680)
     .navigationTitle(model.page.title)
     .toolbar {
@@ -138,8 +136,9 @@ struct SkillsView: View {
         }.frame(width: 145)
       }
       HStack(spacing: 20) {
+        // Count the whole catalog; `rows` is filtered by page, so the candidates page showed 0.
         Metric(
-          value: rows.filter { $0.skill.installed && !$0.skill.cacheOnly }.count,
+          value: model.snapshot.skills.filter { $0.installed && !$0.cacheOnly }.count,
           title: L10n.text("已安裝"),
           icon: "square.grid.2x2")
         Metric(value: model.summary.invocations, title: L10n.text("呼叫次數"), icon: "bolt")
@@ -178,9 +177,11 @@ struct SkillsView: View {
         }.frame(maxWidth: 420).onChange(of: model.project) { _, _ in model.worktree = "" }
       }
       if !model.snapshot.issues.isEmpty || model.snapshot.scanIncomplete == true {
-        Label(L10n.text("部分證據待確認 · 移除評估暫停"), systemImage: "exclamationmark.circle").font(.title3)
-          .foregroundStyle(.secondary).onTapGesture { model.page = .sources }.help(
-            L10n.text("查看資料來源與限制"))
+        Button {
+          model.page = .sources
+        } label: {
+          Label(L10n.text("部分證據待確認 · 移除評估暫停"), systemImage: "exclamationmark.circle")
+        }.buttonStyle(.plain).foregroundStyle(.secondary).help(L10n.text("查看資料來源與限制"))
       }
       if rows.isEmpty {
         ContentUnavailableView(
@@ -208,18 +209,18 @@ struct SkillsView: View {
                       : !row.skill.installed ? L10n.text("歷史項目 · 不在盤點範圍") : L10n.text("使用者安裝")
                 ).font(.body).foregroundStyle(.secondary)
               }
-            }.padding(.vertical, 6)
+            }.padding(.vertical, 3)
           }.width(min: 220, ideal: 290)
           TableColumn(L10n.text("呼叫")) { Text($0.invocations, format: .number).monospacedDigit() }
-            .width(70)
-          TableColumn(L10n.text("讀取")) { Text($0.reads, format: .number).monospacedDigit() }.width(
-            70)
+            .width(70).alignment(.trailing)
+          TableColumn(L10n.text("讀取")) { Text($0.reads, format: .number).monospacedDigit() }
+            .width(70).alignment(.trailing)
           TableColumn(L10n.text("對話")) { Text($0.conversations, format: .number).monospacedDigit() }
-            .width(70)
+            .width(70).alignment(.trailing)
           TableColumn(L10n.text("未知")) { Text($0.unknown, format: .number).monospacedDigit() }
-            .width(60)
-          TableColumn(L10n.text("天數")) { Text($0.days, format: .number).monospacedDigit() }.width(
-            60)
+            .width(80).alignment(.trailing)
+          TableColumn(L10n.text("天數")) { Text($0.days, format: .number).monospacedDigit() }
+            .width(60).alignment(.trailing)
           TableColumn(L10n.text("最近使用")) { row in
             if let date = row.lastUsed {
               Text(date, style: .relative).foregroundStyle(.secondary)
@@ -234,7 +235,7 @@ struct SkillsView: View {
                 ? "shield" : row.candidate ? "archivebox" : "clock"
             ).font(.body).foregroundStyle(.secondary).lineLimit(1).help(row.reason)
           }.width(min: 190, ideal: 220)
-        }.tableStyle(.inset(alternatesRowBackgrounds: true))
+        }.tableStyle(.inset(alternatesRowBackgrounds: false))
           .onChange(of: model.selection) { _, value in model.showDetail = value != nil }
       }
       HStack {
