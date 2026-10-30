@@ -27,6 +27,7 @@ import SkillsUsageCore
         "confirmedReads": summary.reads,
         "unresolved": snapshot.events.filter { $0.skillID == nil }.count,
         "candidates": rows.filter(\.candidate).count, "issues": snapshot.issues,
+        "notices": snapshot.notices ?? [], "blockedNames": (snapshot.blockedNames ?? [:]).count,
         "seconds": Date().timeIntervalSince(start),
         "sources": snapshot.sources.map {
           [

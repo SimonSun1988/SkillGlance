@@ -32,9 +32,8 @@ enum L10n {
   static func message(_ value: String, bundle: Bundle = L10n.bundle) -> String {
     for platform in Platform.allCases.map(\.label) {
       let messages: [(String, String)] = [
-        ("紀錄輪替、截斷或改寫：\(platform)，觀察期已重設", "紀錄輪替、截斷或改寫：%@，觀察期已重設"),
+        ("紀錄輪替、截斷或改寫：\(platform)，已重新讀取該檔案", "紀錄輪替、截斷或改寫：%@，已重新讀取該檔案"),
         ("\(platform) 有無法解析的完整紀錄行", "%@ 有無法解析的完整紀錄行"),
-        ("\(platform) 已匯入的來源檔案已不存在，保留舊摘要", "%@ 已匯入的來源檔案已不存在，保留舊摘要"),
       ]
       if let match = messages.first(where: { $0.0 == value }) {
         return String(format: text(match.1, bundle: bundle), locale: locale, platform)

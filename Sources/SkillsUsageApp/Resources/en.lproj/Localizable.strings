@@ -1,6 +1,5 @@
 // SkillGlance interface and stored diagnostic translations.
 "%@ · 本機版本" = "%@ · Local build";
-"%@ 已匯入的來源檔案已不存在，保留舊摘要" = "Previously imported %@ source files are missing. Previous summaries are retained.";
 "%@ 有無法解析的完整紀錄行" = "%@ has complete log lines that could not be parsed.";
 "%@ 部分檔案無法讀取（%@）" = "Some %@ files could not be read (%@).";
 "%lld Skills" = "Skills: %lld";
@@ -11,11 +10,9 @@
 "7 天" = "7 days";
 "90 天" = "90 days";
 "AI 工具" = "AI tools";
-"Claude 紀錄來源未確認" = "Claude log origin is unverified";
 "Plugin 快取" = "Plugin cache";
 "一般" = "General";
 "不適用" = "Not applicable";
-"仍有未歸屬紀錄，暫停評估" = "Unassigned records · paused";
 "使用紀錄" = "Usage history";
 "來源或證據不完整，暫停評估" = "Incomplete evidence · paused";
 "來源第 %lld 行" = "Source · line %lld";
@@ -49,8 +46,6 @@
 "尚無可歸屬紀錄" = "No attributable records yet";
 "尚無確認紀錄" = "No confirmed records";
 "工具" = "Tool";
-"工具格式覆蓋不完整" = "Some tool formats are unsupported.";
-"工具格式覆蓋不完整，移除評估暫停" = "Some tool formats are unsupported. Removal assessment is paused.";
 "已取消，保留已儲存摘要" = "Canceled. Saved summaries are retained.";
 "已啟用登入時自動啟動" = "Launch at login is enabled";
 "已安裝" = "Installed";
@@ -73,7 +68,6 @@
 "最近使用" = "Last used";
 "期間" = "Period";
 "未掃描" = "Not scanned";
-"未支援的相關讀取工具" = "A relevant read tool is unsupported.";
 "未歸屬" = "Unassigned";
 "未歸屬的歷史紀錄" = "Unassigned history";
 "未歸屬紀錄" = "Unassigned records";
@@ -93,7 +87,6 @@
 "活躍 Skills" = "Active Skills";
 "準備匯入" = "Preparing import";
 "無法完成操作" = "Unable to complete the action";
-"無法解析部分讀取指令" = "Some read commands could not be parsed.";
 "無法變更登入時自動啟動：%@" = "Unable to change launch at login: %@";
 "無法開啟本機資料庫" = "Unable to open the local database.";
 "登入 Mac 後常駐選單列，不自動開啟統計視窗。" = "Start in the menu bar when you log in, without opening the statistics window.";
@@ -109,7 +102,6 @@
 "移除掃描範圍，保留摘要" = "Remove scan location; retain summaries";
 "等待允許登入項目" = "Login item needs approval";
 "等待匯入完成，或調整搜尋條件。" = "Wait for the import to finish or adjust your search.";
-"紀錄輪替、截斷或改寫：%@，觀察期已重設" = "Logs rotated, truncated, or rewritten for %@. The observation period has restarted.";
 "結束 SkillGlance" = "Quit SkillGlance";
 "結果未知" = "Result unknown";
 "統計資料" = "Statistics";
@@ -128,10 +120,7 @@
 "近 90 天有使用或嘗試訊號" = "Activity within 90 days";
 "選擇 Skill" = "Select a Skill";
 "部分" = "Partial";
-"部分工具封裝不在支援範圍" = "Some tool wrappers are unsupported.";
-"部分紀錄無法唯一對應安裝來源" = "Some records have no unique installation match.";
 "部分證據待確認" = "Some evidence needs review";
-"部分讀取結果無法確認，移除評估暫停" = "Some read results are unconfirmed. Removal assessment is paused.";
 "重建未完成：部分來源不存在、無法讀取或格式損壞。舊統計已保留。" = "Rebuild incomplete: some sources are missing, unreadable, or malformed. Previous statistics are retained.";
 "重新建立" = "Rebuild";
 "重新建立統計" = "Rebuild statistics";
@@ -214,3 +203,7 @@
 "標準" = "Standard";
 "大" = "Large";
 "特大" = "Extra large";
+"紀錄輪替、截斷或改寫：%@，已重新讀取該檔案" = "Logs rotated, truncated, or rewritten for %@. The file was read again from the start.";
+"部分提及 SKILL.md 的紀錄無法解析，且未指出特定 Skill" = "Some records that mention SKILL.md could not be parsed and do not name a specific Skill.";
+"可能屬於此 Skill 的紀錄尚無法確認，暫停評估" = "Records that may belong to this Skill are unconfirmed · paused";
+"部分 Skill 紀錄尚無法確認" = "Some Skill records could not be confirmed yet.";

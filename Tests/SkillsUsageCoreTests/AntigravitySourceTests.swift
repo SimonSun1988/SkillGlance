@@ -61,7 +61,8 @@ import Testing
     #expect(event.outcome == .unknown)
     #expect(!event.confirmed)
     #expect(event.skillID == nil)
-    #expect(scan.status.issues > 0)
+    #expect(scan.status.issues == 0)
+    #expect(Set(scan.blockedNames.keys) == ["example"])
     #expect(scan.status.requiredForAssessment == true)
     let persisted = String(decoding: try JSONEncoder().encode(scan.events), as: UTF8.self)
     #expect(!persisted.contains("PRIVATE-"))
@@ -122,7 +123,8 @@ import Testing
     try transcript(home, records: [noTime, noIndex, invalidTime])
     let scan = try AntigravitySource.scan(home: home, catalog: [])
     #expect(scan.events.isEmpty)
-    #expect(scan.status.issues >= 3)
+    #expect(scan.status.issues == 0)
+    #expect(Set(scan.blockedNames.keys) == ["example"])
   }
 
   @Test func shortOnlyAndTruncatedOrMalformedFullRemainIncomplete() throws {
@@ -175,7 +177,8 @@ import Testing
     try transcript(home, records: [record])
     let scan = try AntigravitySource.scan(home: home, catalog: [])
     #expect(scan.events.isEmpty)
-    #expect(scan.status.issues > 0)
+    #expect(scan.status.issues == 0)
+    #expect(Set(scan.blockedNames.keys) == ["tmp", "example"])
   }
 
   @Test func resolvesCatalogWithoutCreatingAnInstalledSkill() throws {
@@ -223,7 +226,39 @@ import Testing
     try transcript(home, records: [record])
     let scan = try AntigravitySource.scan(home: home, catalog: [])
     #expect(scan.events.isEmpty)
-    #expect(scan.status.issues > 0)
+    #expect(scan.status.issues == 0)
+    #expect(Set(scan.blockedNames.keys) == ["example"])
+  }
+
+  @Test func unfinishedRecordsWithoutSkillReferencesRaiseNothing() throws {
+    let home = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: home) }
+    try transcript(
+      home,
+      records: [
+        [
+          "step_index": 1, "type": "PLANNER_RESPONSE", "status": "ERROR",
+          "created_at": "2026-10-01T01:02:03Z",
+          "tool_calls": [["name": "run_command", "args": ["CommandLine": "ls"]]],
+        ],
+        ["unexpected": "shape"],
+      ])
+    let scan = try AntigravitySource.scan(home: home, catalog: [])
+    #expect(scan.status.issues == 0)
+    #expect(scan.blockedNames.isEmpty)
+  }
+
+  @Test func mediaFoldersAreSkippedButConversationsWithoutLogsAreIncomplete() throws {
+    let home = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: home) }
+    try transcript(home, records: [request(home)])
+    let brain = home.appendingPathComponent(".gemini/antigravity/brain")
+    try FileManager.default.createDirectory(
+      at: brain.appendingPathComponent("tempmediaStorage"), withIntermediateDirectories: true)
+    #expect(try AntigravitySource.scan(home: home, catalog: []).status.issues == 0)
+    try FileManager.default.createDirectory(
+      at: brain.appendingPathComponent(UUID().uuidString), withIntermediateDirectories: true)
+    #expect(try AntigravitySource.scan(home: home, catalog: []).status.issues == 1)
   }
 
 }

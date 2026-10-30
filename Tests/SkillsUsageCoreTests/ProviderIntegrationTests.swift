@@ -133,5 +133,7 @@ import Testing
   let second = try await importer.scan()
   #expect(second.events.first?.confirmed == true)
   #expect(UsageMetrics.summary(second.events).reads == 1)
-  #expect(second.sources.first { $0.platform == .gemini }!.issues > 0)
+  #expect(second.sources.first { $0.platform == .gemini }!.issues == 0)
+  #expect(second.blockedNames?["clean-code"] != nil)
+  #expect(second.issues.isEmpty)
 }

@@ -66,37 +66,35 @@ enum CursorSource {
           continue
         }
         guard let rawTool = bubble["toolFormerData"] else { continue }
+        let recorded = Dates.parse(bubble["createdAt"])
         guard let tool = rawTool as? [String: Any], let name = tool["name"] as? String else {
-          scan.issue()
+          scan.unresolved(rawTool, at: recorded)
           continue
         }
         guard name == "read_file_v2" else {
-          if [tool["params"], tool["rawArgs"]].contains(where: {
-            ProviderFile.referencesSkillFile($0)
-          }) {
-            scan.issue("部分 Skill 讀取工具尚未支援")
-          }
+          scan.unresolved([tool["params"], tool["rawArgs"]], at: recorded)
           continue
         }
         let params = dictionary(tool["params"])
         let args = dictionary(tool["rawArgs"])
         guard let path = params?["targetFile"] as? String ?? args?["path"] as? String else {
-          scan.issue()
+          scan.unresolved([tool["params"], tool["rawArgs"]], at: recorded)
           continue
         }
         guard URL(fileURLWithPath: path).lastPathComponent == "SKILL.md" else { continue }
+        let target = SkillIdentity.shortName(path)
         guard path.hasPrefix("/"), path.count <= 4096, !path.contains("\n"),
           !path.contains("\0")
         else {
-          scan.issue()
+          scan.unresolved(path, at: recorded, "部分 Skill 紀錄尚無法確認")
           continue
         }
         let parts = key.split(separator: ":", omittingEmptySubsequences: false)
         guard parts.count == 3, !parts[1].isEmpty,
           let call = tool["toolCallId"] as? String, !call.isEmpty, call.count <= 4096,
-          let time = Dates.parse(bubble["createdAt"])
+          let time = recorded
         else {
-          scan.issue("Cursor 技能紀錄缺少有效時間或識別碼")
+          scan.block([target], at: recorded, "Cursor 技能紀錄缺少有效時間或識別碼")
           continue
         }
         let composer = String(parts[1])
@@ -106,7 +104,7 @@ enum CursorSource {
         } else {
           cwd = try database.workspace(composer: composer, bytes: &bytes)
           workspaces[composer] = cwd
-          if cwd.isEmpty { scan.issue("Cursor 紀錄缺少專案歸屬") }
+          if cwd.isEmpty { scan.note("Cursor 紀錄缺少專案歸屬") }
         }
         guard bytes <= maximumScanBytes else {
           scan.issue("Cursor 紀錄超過本次掃描上限")
@@ -116,14 +114,14 @@ enum CursorSource {
         let outcome: Outcome
         if bubble["_v"] as? Int != 3 {
           outcome = .unknown
-          scan.issue("Cursor 技能紀錄版本不受支援")
+          scan.block([target], at: time, "Cursor 技能紀錄版本不受支援")
         } else {
           switch tool["status"] as? String {
           case "error", "cancelled": outcome = .failure
           case "completed" where positiveInteger(result?["totalLinesInFile"]): outcome = .success
           default:
             outcome = .unknown
-            scan.issue("Cursor 技能讀取結果尚無法確認")
+            scan.block([target], at: time, "Cursor 技能讀取結果尚無法確認")
           }
         }
         let id = stableID("cursor|\(composer)|\(call)|0")
@@ -140,7 +138,9 @@ enum CursorSource {
             event.confirmed = false
             event.conflicted = true
             if previous.target != path { event.skillID = nil }
-            scan.issue("Cursor 相同工具識別碼的紀錄互相衝突")
+            scan.block(
+              [target, SkillIdentity.shortName(previous.target)], at: time,
+              "Cursor 相同工具識別碼的紀錄互相衝突")
           } else {
             continue
           }

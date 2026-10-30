@@ -72,6 +72,8 @@ enum AntigravitySource {
         }
         let system = conversation.appendingPathComponent(".system_generated")
         let logs = system.appendingPathComponent("logs")
+        // Conversations are named by UUID; other folders such as tempmediaStorage hold media only.
+        if UUID(uuidString: conversation.lastPathComponent) == nil && !exists(system) { continue }
         guard exists(system), exists(logs) else {
           scan.issue()
           continue
@@ -107,38 +109,52 @@ enum AntigravitySource {
         if !data.isEmpty && data.last != 10 { scan.issue() }
         for (offset, line) in lines.dropLast().enumerated() {
           guard !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
-          let record: Record
-          do { record = try JSONDecoder().decode(Record.self, from: Data(line.utf8)) } catch {
+          let raw = Data(line.utf8)
+          guard let object = try? JSONSerialization.jsonObject(with: raw) else {
             scan.issue()
             continue
           }
-          if let truncated = record.truncatedFields, !truncated.isEmpty {
-            scan.issue()
-            if truncated.contains("tool_calls") { continue }
+          let created = Dates.parse((object as? [String: Any])?["created_at"])
+          guard let record = try? JSONDecoder().decode(Record.self, from: raw) else {
+            scan.unresolved(object, at: created, "部分 Skill 紀錄尚無法確認")
+            continue
           }
-          if record.status != "DONE" { scan.issue() }
+          // Only tool calls carry Skill evidence; truncated content or thinking does not hide reads.
+          if record.truncatedFields?.contains("tool_calls") == true {
+            scan.issue("僅有截短紀錄，無法確認 Skill 讀取證據")
+            continue
+          }
+          if record.status != "DONE" {
+            scan.unresolved(
+              (object as? [String: Any])?["tool_calls"], at: created, "部分 Skill 紀錄尚無法確認")
+          }
           guard record.type == "PLANNER_RESPONSE", let calls = record.toolCalls else { continue }
           for (ordinal, call) in calls.enumerated() {
             guard call.name == "view_file", call.args.isSkillFile == true else { continue }
-            guard let path = call.args.absolutePath, path.hasPrefix("/"),
-              path.hasSuffix("/SKILL.md"),
+            let path = call.args.absolutePath ?? ""
+            guard path.hasPrefix("/"), path.hasSuffix("/SKILL.md"),
               URL(fileURLWithPath: path).lastPathComponent == "SKILL.md",
               let step = record.stepIndex, step >= 0,
-              let time = Dates.parse(record.createdAt)
+              let time = created
             else {
-              scan.issue()
+              if ProviderFile.referencesSkillFile(path) {
+                scan.unresolved(path, at: created, "部分 Skill 紀錄尚無法確認")
+              } else {
+                scan.note("部分 Skill 紀錄尚無法確認")
+              }
               continue
             }
             let normalized = URL(fileURLWithPath: path).standardizedFileURL.path
+            let target = SkillIdentity.shortName(normalized)
             let skillID = SkillIdentity.resolve(normalized, catalog: catalog)
             guard skillID != nil || trusted(normalized, home: home) else {
-              scan.issue()
+              scan.block([target], at: time)
               continue
             }
             let session = "\(surface):\(conversation.lastPathComponent)"
             let id = stableID("antigravity:\(session):\(step):\(ordinal)")
             guard eventIDs.insert(id).inserted else {
-              scan.issue()
+              scan.block([target], at: time)
               continue
             }
             scan.events.append(
@@ -148,7 +164,7 @@ enum AntigravitySource {
                 worktree: nil, evidence: .read, outcome: .unknown, confirmed: false,
                 scope: "讀取請求，結果未能配對", source: full.path, line: offset + 1))
             // Transcript results have no tool-call ID; neighboring DONE records prove no pairing.
-            scan.issue("已找到 Skill 讀取請求，結果未能配對")
+            scan.block([target], at: time, "已找到 Skill 讀取請求，結果未能配對")
           }
         }
       }

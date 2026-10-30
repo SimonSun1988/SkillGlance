@@ -20,13 +20,12 @@ public actor ImportCoordinator {
     var events = Dictionary(snapshot.events.map { ($0.id, $0) }, uniquingKeysWith: { _, b in b })
     if rebuild {
       events = [:]
-      snapshot.issues = []
       snapshot.lastScan = nil
     }
-    snapshot.issues.removeAll {
-      $0 == "部分工具來源證據不完整，請查看資料來源" || $0 == "部分紀錄無法唯一對應安裝來源" || $0 == "部分讀取結果無法確認，移除評估暫停"
-        || $0.hasPrefix("工具格式覆蓋不完整")
-    }
+    // Issues and notices describe this scan only; lasting facts live in checkpoints.
+    snapshot.issues = []
+    snapshot.notices = []
+    var blocked: [String: Date] = [:]
     let now = Date()
     var hardFailures = 0
     var roots = [
@@ -117,9 +116,9 @@ public actor ImportCoordinator {
           if checkpoint.offset > size
             || (!checkpoint.identity.isEmpty && checkpoint.identity != identity) || changedAnchor
           {
+            // Event IDs are stable, so re-reading this file alone cannot double count.
             checkpoint = Checkpoint()
-            Self.addIssue("紀錄輪替、截斷或改寫：\(platform.label)，觀察期已重設", to: &snapshot)
-            for i in snapshot.skills.indices { snapshot.skills[i].observedAt = now }
+            Self.addNotice("紀錄輪替、截斷或改寫：\(platform.label)，已重新讀取該檔案", to: &snapshot)
           }
           // Replay old parser checkpoints without rebuilding statistics or observation periods.
           if checkpoint.state.parserRevision < ParseState.currentRevision {
@@ -152,7 +151,6 @@ public actor ImportCoordinator {
           if platform == .claudeDesktop && checkpoint.offset == 0 {
             checkpoint.state.desktop = checkpoint.state.desktop || linkedDesktop
           }
-          var malformed = 0
           let baseline = checkpoint.line
           var consumed = 0
           checkpoint.offset = try JSONLReader.read(file, offset: checkpoint.offset) {
@@ -161,7 +159,7 @@ public actor ImportCoordinator {
             guard !data.isEmpty else { return }
             guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
             else {
-              malformed += 1
+              checkpoint.state.malformedLines += 1
               return
             }
             for parsedEvent in LogParser.consume(
@@ -175,32 +173,18 @@ public actor ImportCoordinator {
               }
               event.project = locations[event.cwd]?.repository
               event.worktree = locations[event.cwd]?.worktree
-              if events[event.id]?.conflicted == true { continue }
-              if let old = events[event.id],
-                old.outcome != .unknown
-                  && (event.outcome == .unknown
-                    || (old.confirmed && !event.confirmed && old.outcome == event.outcome))
-              {
-                continue
+              if Self.merge(event, into: &events) {
+                Self.addNotice("同一事件存在互相衝突的結果", to: &snapshot)
               }
-              if let old = events[event.id],
-                old.outcome != .unknown && event.outcome != .unknown && old.outcome != event.outcome
-              {
-                Self.addIssue("同一事件存在互相衝突的結果", to: &snapshot)
-                event.outcome = .unknown
-                event.confirmed = false
-                event.conflicted = true
-              }
-              events[event.id] = event
             }
           }
           checkpoint.anchor = try JSONLReader.anchor(file, offset: checkpoint.offset)
           checkpoint.line += consumed
           checkpoints[file.path] = checkpoint
           if previousOffset != checkpoint.offset { modifiedFiles += 1 }
-          if malformed > 0 {
-            hardFailures += malformed
-            status.issues += malformed
+          if checkpoint.state.malformedLines > 0 {
+            hardFailures += checkpoint.state.malformedLines
+            status.issues += checkpoint.state.malformedLines
             Self.addIssue("\(platform.label) 有無法解析的完整紀錄行", to: &snapshot)
           }
         } catch is CancellationError { throw CancellationError() } catch {
@@ -215,14 +199,15 @@ public actor ImportCoordinator {
           try await store.save(snapshot, checkpoints: checkpoints)
         }
       }
+      // Tools delete old sessions; keep their events and forget only the read position.
       let current = Set(files.map(\.path))
-      if checkpoints.keys.contains(where: { path in
-        sourceRoots.first(where: { $0.0 == platform })!.1.contains(where: {
-          path.hasPrefix($0.path + "/")
-        }) && !current.contains(path)
-      }) {
-        status.issues += 1
-        Self.addIssue("\(platform.label) 已匯入的來源檔案已不存在，保留舊摘要", to: &snapshot)
+      let platformRoots = sourceRoots.first(where: { $0.0 == platform })!.1.flatMap {
+        [$0.path, Self.realPath($0)]
+      }
+      for path in checkpoints.keys where !files.isEmpty && !current.contains(path)
+        && platformRoots.contains(where: { path.hasPrefix($0 + "/") })
+      {
+        checkpoints[path] = nil
       }
       if platform == .claudeDesktop {
         let desktopFiles = files.filter { checkpoints[$0.path]?.state.desktop == true }
@@ -251,7 +236,7 @@ public actor ImportCoordinator {
     let cli = try ClaudeCodeSource.scan(
       home: home, catalog: snapshot.skills, desktopIDs: provenDesktopIDs)
     for file in cli.handledFiles {
-      checkpoints[file]?.state.coverageIssues.remove("Claude 紀錄來源未確認")
+      checkpoints[file]?.state.unconfirmedSource = [:]
     }
     let additional = [
       cli,
@@ -260,11 +245,6 @@ public actor ImportCoordinator {
       try CursorSource.scan(home: home, catalog: snapshot.skills),
     ]
     for var scan in additional {
-      if snapshot.events.contains(where: {
-        $0.platform == scan.status.platform && !FileManager.default.fileExists(atPath: $0.source)
-      }) {
-        scan.issue("已匯入的來源目前無法讀取")
-      }
       if scan.status.requiredForAssessment == false,
         snapshot.events.contains(where: { $0.platform == scan.status.platform })
           || previousSources.contains(where: {
@@ -274,37 +254,25 @@ public actor ImportCoordinator {
         scan.issue("已匯入的來源目前無法讀取")
       }
       hardFailures += scan.status.issues
-      for event in scan.events {
-        if events[event.id]?.conflicted == true { continue }
-        if let old = events[event.id],
-          old.outcome != .unknown
-            && (event.outcome == .unknown
-              || (old.confirmed && !event.confirmed && old.outcome == event.outcome))
-        {
-          continue
-        }
-        if let old = events[event.id], old.outcome != .unknown,
-          event.outcome != .unknown, old.outcome != event.outcome
-        {
-          var conflict = event
-          conflict.outcome = .unknown
-          conflict.confirmed = false
-          conflict.conflicted = true
-          events[event.id] = conflict
-          scan.issue("同一事件存在互相衝突的結果")
-        } else {
-          events[event.id] = event
-        }
+      for event in scan.events where Self.merge(event, into: &events) {
+        scan.note("同一事件存在互相衝突的結果")
       }
       statuses.append(scan.status)
       if scan.status.issues > 0 { Self.addIssue("部分工具來源證據不完整，請查看資料來源", to: &snapshot) }
+      blocked.merge(scan.blockedNames, uniquingKeysWith: max)
+      for notice in scan.notices { Self.addNotice(notice, to: &snapshot) }
     }
     if rebuild && hardFailures > 0 { throw StoreError(message: "重建未完成：部分來源不存在、無法讀取或格式損壞。舊統計已保留。") }
     snapshot.sources = statuses
     snapshot.sourceCoverageRevision = 1
-    for checkpoint in checkpoints.values where !checkpoint.state.coverageIssues.isEmpty {
-      Self.addIssue("工具格式覆蓋不完整，移除評估暫停", to: &snapshot)
+    for state in checkpoints.values.map(\.state) {
+      blocked.merge(state.blockedNames, uniquingKeysWith: max)
+      blocked.merge(state.unconfirmedSource, uniquingKeysWith: max)
+      if state.unparsedReads > 0 {
+        Self.addNotice("部分提及 SKILL.md 的紀錄無法解析，且未指出特定 Skill", to: &snapshot)
+      }
     }
+    snapshot.blockedNames = blocked
     let parents = Dictionary(
       checkpoints.values.filter { !$0.state.session.isEmpty }.map {
         ($0.state.session, $0.state.group)
@@ -328,13 +296,6 @@ public actor ImportCoordinator {
       }
       return event
     }.sorted { $0.time > $1.time }
-    // Unknown read wrappers and unresolved targets block removal advice, while known statistics remain useful.
-    if snapshot.events.contains(where: { $0.skillID == nil }) {
-      Self.addIssue("部分紀錄無法唯一對應安裝來源", to: &snapshot)
-    }
-    if snapshot.events.contains(where: { $0.evidence == .read && $0.outcome == .unknown }) {
-      Self.addIssue("部分讀取結果無法確認，移除評估暫停", to: &snapshot)
-    }
     for i in snapshot.skills.indices
     where snapshot.lastScan == nil || snapshot.skills[i].observedAt > snapshot.lastScan! {
       snapshot.skills[i].observedAt = Date()
@@ -394,7 +355,47 @@ public actor ImportCoordinator {
     else { return [] }
     return enumerator.compactMap { $0 as? URL }.filter { $0.pathExtension == suffix }
   }
+  // The file enumerator reports real paths, e.g. /private/var for /var.
+  static func realPath(_ url: URL) -> String {
+    guard let resolved = realpath(url.path, nil) else { return url.path }
+    defer { free(resolved) }
+    return String(cString: resolved)
+  }
   static func addIssue(_ text: String, to snapshot: inout Snapshot) {
     if !snapshot.issues.contains(text) { snapshot.issues.append(text) }
+  }
+  static func addNotice(_ text: String, to snapshot: inout Snapshot) {
+    if !(snapshot.notices ?? []).contains(text) { snapshot.notices = (snapshot.notices ?? []) + [text] }
+  }
+  // Returns true when the copies disagree; the event then stays unknown and unattributed.
+  static func merge(_ incoming: UsageEvent, into events: inout [String: UsageEvent]) -> Bool {
+    var event = incoming
+    guard var old = events[event.id] else {
+      events[event.id] = event
+      return false
+    }
+    let epoch = Date(timeIntervalSince1970: 0)
+    if old.time == epoch && event.time != epoch {
+      old.time = event.time
+      events[event.id] = old
+    } else if event.time == epoch {
+      event.time = old.time
+    }
+    if old.conflicted == true { return false }
+    if old.outcome != .unknown
+      && (event.outcome == .unknown
+        || (old.confirmed && !event.confirmed && old.outcome == event.outcome))
+    {
+      return false
+    }
+    let conflict =
+      old.outcome != .unknown && event.outcome != .unknown && old.outcome != event.outcome
+    if conflict {
+      event.outcome = .unknown
+      event.confirmed = false
+      event.conflicted = true
+    }
+    events[event.id] = event
+    return conflict
   }
 }

@@ -48,7 +48,7 @@ enum ClaudeCodeSource {
             state: &state, catalog: catalog)
           {
             guard event.time > Date(timeIntervalSince1970: 0) else {
-              result.issue()
+              result.block([SkillIdentity.shortName(event.target)], at: nil)
               continue
             }
             if let old = events[event.id], old.outcome != .unknown && event.outcome == .unknown {
@@ -62,13 +62,16 @@ enum ClaudeCodeSource {
               conflict.confirmed = false
               conflict.conflicted = true
               events[event.id] = conflict
-              result.issue()
+              result.block([SkillIdentity.shortName(event.target)], at: event.time, "同一事件存在互相衝突的結果")
             } else if events[event.id]?.conflicted != true {
               events[event.id] = event
             }
           }
         }
-        if !state.coverageIssues.isEmpty { result.issue() }
+        for (name, time) in state.blockedNames.merging(state.unconfirmedSource, uniquingKeysWith: max) {
+          result.block([name], at: time)
+        }
+        if state.unparsedReads > 0 { result.note("部分提及 SKILL.md 的紀錄無法解析，且未指出特定 Skill") }
         result.handledFiles.insert(file.path)
       } catch is CancellationError { throw CancellationError() } catch {
         result.issue("部分來源檔案無法讀取")

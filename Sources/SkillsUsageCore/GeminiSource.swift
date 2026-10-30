@@ -23,7 +23,7 @@ enum GeminiSource {
         var messageLines: [String: Int] = [:]
         func remember(_ record: [String: Any], line: Int) {
           guard let id = record["id"] as? String else {
-            scan.issue()
+            scan.unresolved(record, at: Dates.parse(record["timestamp"]))
             return
           }
           messages[id] = record
@@ -61,7 +61,7 @@ enum GeminiSource {
               if patch["id"] != nil { updates.append(patch) }
               for update in updates {
                 guard let id = update["id"] as? String, var message = messages[id] else {
-                  scan.issue()
+                  scan.unresolved(update, at: Dates.parse(update["timestamp"]))
                   continue
                 }
                 if let changes = update["toolCalls"] as? [[String: Any]],
@@ -71,7 +71,7 @@ enum GeminiSource {
                     guard let callID = change["id"] as? String,
                       let position = calls.firstIndex(where: { $0["id"] as? String == callID })
                     else {
-                      scan.issue()
+                      scan.unresolved(change, at: Dates.parse(change["timestamp"]))
                       continue
                     }
                     calls[position].merge(change, uniquingKeysWith: { _, new in new })
@@ -86,7 +86,7 @@ enum GeminiSource {
             } else if record["id"] != nil {
               remember(record, line: index + 1)
             } else {
-              scan.issue()
+              scan.unresolved(record, at: Dates.parse(record["timestamp"]))
             }
           }
         }
@@ -102,9 +102,10 @@ enum GeminiSource {
         let identity = project + "|" + file.deletingPathExtension().lastPathComponent
         for (messageID, message) in messages where message["type"] as? String == "gemini" {
           for call in message["toolCalls"] as? [[String: Any]] ?? [] {
+            let recorded = Dates.parse(call["timestamp"] ?? message["timestamp"])
             guard let name = call["name"] as? String, let args = call["args"] as? [String: Any]
             else {
-              scan.issue()
+              scan.unresolved(call, at: recorded)
               continue
             }
             let target: String
@@ -113,7 +114,7 @@ enum GeminiSource {
               guard skill.count <= 256,
                 skill.range(of: #"^[A-Za-z0-9_.:-]+$"#, options: .regularExpression) != nil
               else {
-                scan.issue()
+                scan.note("部分 Skill 紀錄尚無法確認")
                 continue
               }
               target = skill
@@ -124,24 +125,17 @@ enum GeminiSource {
               guard path.hasPrefix("/"), path.count <= 4096, !path.contains("\0"),
                 !path.contains("\n")
               else {
-                scan.issue()
+                scan.unresolved(path, at: recorded, "部分 Skill 紀錄尚無法確認")
                 continue
               }
               target = path
               evidence = .read
-            } else if name == "run_shell_command",
-              (args["command"] as? String ?? "").contains("SKILL.md")
-            {
-              scan.issue("部分 Skill 讀取工具尚未支援")
-              continue
             } else {
-              if ProviderFile.referencesSkillFile(args) { scan.issue("部分 Skill 讀取工具尚未支援") }
+              scan.unresolved(args, at: recorded)
               continue
             }
-            guard let callID = call["id"] as? String, !callID.isEmpty,
-              let time = Dates.parse(call["timestamp"] ?? message["timestamp"])
-            else {
-              scan.issue()
+            guard let callID = call["id"] as? String, !callID.isEmpty, let time = recorded else {
+              scan.block([SkillIdentity.shortName(target)], at: recorded)
               continue
             }
             let state = call["status"] as? String
@@ -158,7 +152,7 @@ enum GeminiSource {
             }
             let confirmed = evidence == .read && outcome == .success && nonempty
             if outcome == .unknown || (evidence == .read && !confirmed && outcome != .failure) {
-              scan.issue()
+              scan.block([SkillIdentity.shortName(target)], at: time)
             }
             let id = stableID("gemini|\(identity)|\(callID)")
             let event = UsageEvent(
@@ -176,7 +170,7 @@ enum GeminiSource {
               conflict.confirmed = false
               conflict.conflicted = true
               events[id] = conflict
-              scan.issue()
+              scan.block([SkillIdentity.shortName(target)], at: time, "同一事件存在互相衝突的結果")
             } else if events[id]?.conflicted != true {
               if let previous = events[id],
                 previous.outcome != .unknown

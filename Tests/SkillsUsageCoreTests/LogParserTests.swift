@@ -346,17 +346,58 @@ func skillContextRecord(_ path: String, id: String = "66666666-6666-4666-8666-66
   #expect(LogParser.continuationKey(["cell_id": String(repeating: "x", count: 200)]) == nil)
   #expect(LogParser.continuationKey(["session_id": 42]) == "session:42")
 }
-@Test func unclassifiedClaudeSkillRaisesCoverageIssue() throws {
+@Test func unclassifiedClaudeSkillBlocksOnlyThatSkillUntilClassified() throws {
   var state = ParseState()
   let call = try parse(
-    #"{"sessionId":"s","message":{"content":[{"type":"tool_use","name":"Skill","id":"c","input":{"skill":"clean-code"}}]}}"#
+    #"{"sessionId":"s","message":{"content":[{"type":"tool_use","name":"Skill","id":"c","input":{"skill":"plugin:clean-code"}}]}}"#
   )
   #expect(
     LogParser.consume(
       call, platform: .claudeDesktop, source: "file", line: 1, state: &state,
       catalog: [fixtureSkill()]
     ).isEmpty)
-  #expect(!state.coverageIssues.isEmpty)
+  #expect(Set(state.unconfirmedSource.keys) == ["clean-code"])
+  #expect(state.blockedNames.isEmpty)
+}
+@Test func unparsedReadCommandsRecordNamedTargetsOrACount() throws {
+  var state = ParseState()
+  for (id, command) in [
+    ("named", "python3 - <<'EOF'\nopen('/a/clean-code/SKILL.md'); open('~/.x/b.c:d/SKILL.md')\nEOF"),
+    ("anonymous", "rg -l SKILL.md ."),
+  ] {
+    let args = String(
+      data: try JSONSerialization.data(withJSONObject: ["cmd": command]), encoding: .utf8)!
+    let call: [String: Any] = [
+      "type": "response_item", "timestamp": "2026-10-27T01:00:00Z",
+      "payload": [
+        "type": "function_call", "name": "exec_command", "call_id": id, "arguments": args,
+      ],
+    ]
+    #expect(
+      LogParser.consume(
+        call, platform: .codex, source: "file", line: 1, state: &state, catalog: [fixtureSkill()]
+      ).isEmpty)
+  }
+  #expect(Set(state.blockedNames.keys) == ["clean-code", "d"])
+  #expect(state.blockedNames["clean-code"] == Dates.parse("2026-10-27T01:00:00Z"))
+  #expect(state.unparsedReads == 1)
+}
+@Test func requestBlobRecordsAreIgnoredWithoutChangingState() throws {
+  var state = ParseState()
+  state.session = "s"
+  state.desktop = true
+  let blob = try parse(
+    #"{"type":"api-request-blob","entrypoint":"cli","sessionId":"other","message":{"content":[{"type":"tool_use","name":"Skill","id":"c","input":{"skill":"clean-code"}}]}}"#
+  )
+  #expect(
+    LogParser.consume(
+      blob, platform: .claudeDesktop, source: "file", line: 1, state: &state,
+      catalog: [fixtureSkill()]
+    ).isEmpty)
+  #expect(state.session == "s")
+  #expect(state.desktop)
+  #expect(state.explicitCLI == nil)
+  #expect(state.pending.isEmpty)
 }
 @Test func isoDatesWithAndWithoutFractionsShareInstant() {
   #expect(Dates.parse("2026-10-27T01:00:00.000Z") == Dates.parse("2026-10-27T01:00:00Z"))

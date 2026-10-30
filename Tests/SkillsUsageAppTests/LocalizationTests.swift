@@ -94,7 +94,7 @@ private let resources = URL(fileURLWithPath: #filePath)
     L10n.message("Claude Desktop 部分檔案無法讀取（CocoaError）", bundle: english)
       == "Some Claude Desktop files could not be read (CocoaError).")
   #expect(
-    L10n.message("紀錄輪替、截斷或改寫：Codex，觀察期已重設", bundle: simplified)
-      == "记录轮替、截断或改写：Codex，观察期已重置")
+    L10n.message("紀錄輪替、截斷或改寫：Codex，已重新讀取該檔案", bundle: simplified)
+      == "记录轮替、截断或改写：Codex，已重新读取该文件")
   #expect(L10n.message("/tmp/保護中/SKILL.md", bundle: english) == "/tmp/保護中/SKILL.md")
 }

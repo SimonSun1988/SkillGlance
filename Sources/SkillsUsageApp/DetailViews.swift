@@ -172,6 +172,10 @@ struct SourcesView: View {
         ForEach(model.snapshot.issues, id: \.self) {
           Label(L10n.message($0), systemImage: "exclamationmark.circle")
         }
+        ForEach(model.snapshot.notices ?? [], id: \.self) {
+          Label(L10n.message($0), systemImage: "info.circle").font(.system(size: base - 1))
+            .foregroundStyle(Color.muted)
+        }
         Text(
           L10n.text(
             "僅分析本機可讀紀錄。Antigravity 歷史紀錄只能確認讀取請求，無法配對結果時不增加確認讀取；未知格式與來源缺漏會暫停移除評估。")

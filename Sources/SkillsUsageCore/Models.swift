@@ -68,21 +68,26 @@ public struct PendingRead: Codable, Sendable {
   var cwd: String
 }
 public struct ParseState: Codable, Sendable {
-  static let currentRevision = 1
+  static let currentRevision = 2
   var parserRevision = currentRevision
   public var session = ""
   public var group = ""
   public var cwd = ""
   public var desktop = false
   var explicitCLI: Bool?
-  public var coverageIssues: Set<String> = []
+  // Skill names whose records could not be read exactly, with the latest record time.
+  public var blockedNames: [String: Date] = [:]
+  // Skill records seen before the file was known to be Claude Desktop or Claude Code.
+  public var unconfirmedSource: [String: Date] = [:]
+  public var unparsedReads = 0
+  public var malformedLines = 0
   var continuations: [String: String] = [:]
   var polls: [String: String] = [:]
   var pending: [String: [PendingRead]] = [:]
   public init() {}
   enum CodingKeys: String, CodingKey {
-    case session, group, cwd, desktop, pending, coverageIssues, continuations, polls, explicitCLI,
-      parserRevision
+    case session, group, cwd, desktop, pending, continuations, polls, explicitCLI, parserRevision,
+      blockedNames, unconfirmedSource, unparsedReads, malformedLines
   }
   public init(from decoder: Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -93,7 +98,11 @@ public struct ParseState: Codable, Sendable {
     desktop = try c.decodeIfPresent(Bool.self, forKey: .desktop) ?? false
     explicitCLI = try c.decodeIfPresent(Bool.self, forKey: .explicitCLI)
     pending = try c.decodeIfPresent([String: [PendingRead]].self, forKey: .pending) ?? [:]
-    coverageIssues = try c.decodeIfPresent(Set<String>.self, forKey: .coverageIssues) ?? []
+    blockedNames = try c.decodeIfPresent([String: Date].self, forKey: .blockedNames) ?? [:]
+    unconfirmedSource =
+      try c.decodeIfPresent([String: Date].self, forKey: .unconfirmedSource) ?? [:]
+    unparsedReads = try c.decodeIfPresent(Int.self, forKey: .unparsedReads) ?? 0
+    malformedLines = try c.decodeIfPresent(Int.self, forKey: .malformedLines) ?? 0
     continuations = try c.decodeIfPresent([String: String].self, forKey: .continuations) ?? [:]
     polls = try c.decodeIfPresent([String: String].self, forKey: .polls) ?? [:]
   }
@@ -122,7 +131,11 @@ public struct Snapshot: Codable, Sendable {
   public var sources: [SourceStatus] = []
   public var scanIncomplete: Bool?
   public var lastScan: Date?
+  // Source-level failures that pause every removal assessment.
   public var issues: [String] = []
+  public var notices: [String]? = nil
+  // Skill short names with records that could not be confirmed, with the latest record time.
+  public var blockedNames: [String: Date]? = nil
   public var projectRoots: [String] = []
   public var sourceCoverageRevision: Int? = nil
   public init() {}
