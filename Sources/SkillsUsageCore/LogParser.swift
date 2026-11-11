@@ -38,9 +38,12 @@ public enum LogParser {
     func event(
       _ call: String, _ target: PendingRead, _ outcome: Outcome, _ confirmed: Bool, _ index: Int
     ) -> UsageEvent {
-      UsageEvent(
-        id: stableID(
-          "\(platform.rawValue)|\(state.session.isEmpty ? source : state.session)|\(call)|\(index)"),
+      // A resumed or forked session copies earlier records under a new session ID. Provider call
+      // IDs are unique on their own, so the copy must get the ID of the original event.
+      let unique = ["call_", "toolu_", "skill-context:"].contains { call.hasPrefix($0) }
+      let scope = unique ? "" : state.session.isEmpty ? source : state.session
+      return UsageEvent(
+        id: stableID("\(platform.rawValue)|\(scope)|\(call)|\(index)"),
         platform: platform, session: state.session, group: state.group, skillID: target.skillID,
         target: target.target, time: target.time, cwd: target.cwd, evidence: target.evidence,
         outcome: outcome, confirmed: confirmed, scope: target.scope, source: source,

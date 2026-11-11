@@ -68,7 +68,7 @@ public struct PendingRead: Codable, Sendable {
   var cwd: String
 }
 public struct ParseState: Codable, Sendable {
-  static let currentRevision = 2
+  static let currentRevision = 3
   var parserRevision = currentRevision
   public var session = ""
   public var group = ""
@@ -138,6 +138,8 @@ public struct Snapshot: Codable, Sendable {
   public var blockedNames: [String: Date]? = nil
   public var projectRoots: [String] = []
   public var sourceCoverageRevision: Int? = nil
+  // Missing on snapshots whose parsed events still carry session-scoped IDs.
+  public var eventIDRevision: Int? = nil
   public init() {}
 }
 public enum Dates {
