@@ -24,9 +24,16 @@ import Testing
   #expect(second?.worktree == tree.path)
   #expect(ProjectResolver.resolve("/nonexistent-stale-project", roots: []) == nil)
 }
-@Test func plainFolderNeedsExplicitProjectRoot() throws {
-  let root = try temporaryDirectory()
+@Test func plainFolderIsItsOwnProjectUnlessAProjectRootContainsIt() throws {
+  let root = try temporaryDirectory().resolvingSymlinksInPath()
   defer { try? FileManager.default.removeItem(at: root) }
-  #expect(ProjectResolver.resolve(root.path, roots: []) == nil)
-  #expect(ProjectResolver.resolve(root.path, roots: [root.path])?.repository == root.path)
+  let folder = root.appendingPathComponent("work/notes")
+  try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+  #expect(ProjectResolver.resolve(folder.path, roots: [])?.repository == folder.path)
+  #expect(ProjectResolver.resolve(folder.path, roots: [root.path])?.repository == root.path)
+  #expect(ProjectResolver.resolve(root.appendingPathComponent("missing").path, roots: []) == nil)
+  let home = FileManager.default.homeDirectoryForCurrentUser
+  #expect(ProjectResolver.resolve(home.path, roots: []) == nil)
+  #expect(ProjectResolver.resolve(home.appendingPathComponent("Library/Caches").path, roots: []) == nil)
+  #expect(ProjectResolver.resolve("/", roots: []) == nil)
 }

@@ -303,8 +303,8 @@ private func checkpoint(_ store: UsageStore, _ suffix: String) async throws -> C
   #expect(snapshot.events.first?.time == Dates.parse("2026-10-27T01:00:00Z"))
   #expect(snapshot.events.first?.outcome == .success)
 }
-@Test func parserRevisionTwoReplaysOldCheckpointsWithoutRebuildingStatistics() async throws {
-  #expect(ParseState.currentRevision == 2)
+@Test func newParserRevisionReplaysOldCheckpointsWithoutRebuildingStatistics() async throws {
+  #expect(ParseState.currentRevision == 3)
   let root = try temporaryDirectory().resolvingSymlinksInPath()
   defer { try? FileManager.default.removeItem(at: root) }
   let skillDir = root.appendingPathComponent(".agents/skills/clean-code")
@@ -336,7 +336,7 @@ private func checkpoint(_ store: UsageStore, _ suffix: String) async throws -> C
   #expect(snapshot.events.contains { $0.id == before.events[0].id })
   #expect(snapshot.events.contains { $0.scope == "上下文載入" && $0.confirmed })
   #expect(snapshot.skills.first?.observedAt == observed)
-  #expect(try await store.checkpoints()[log.path]?.state.parserRevision == 2)
+  #expect(try await store.checkpoints()[log.path]?.state.parserRevision == 3)
 }
 @Test func newProjectResolvesPreviouslyImportedNameAndProject() async throws {
   let root = try temporaryDirectory()
@@ -470,4 +470,81 @@ private func checkpoint(_ store: UsageStore, _ suffix: String) async throws -> C
   let updated = try await importer.scan()
   #expect(updated.events.first?.outcome == .unknown)
   #expect(updated.events.first?.confirmed == false)
+}
+
+@Test func resumedSessionCopiesCountOnceAtTheOriginalTime() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let home = root.appendingPathComponent("home")
+  let skill = home.appendingPathComponent(".agents/skills/clean-code")
+  let project = home.appendingPathComponent(".claude/projects/project")
+  for path in [skill, project] {
+    try FileManager.default.createDirectory(at: path, withIntermediateDirectories: true)
+  }
+  try "# Clean code\nInstructions".write(
+    to: skill.appendingPathComponent("SKILL.md"), atomically: true, encoding: .utf8)
+  func session(_ id: String, at time: String) -> String {
+    [
+      #"{"entrypoint":"claude-desktop","sessionId":"\#(id)","timestamp":"\#(time)","message":{"content":[{"type":"tool_use","name":"Skill","id":"toolu_original","input":{"skill":"clean-code"}}]}}"#,
+      #"{"entrypoint":"claude-desktop","sessionId":"\#(id)","timestamp":"\#(time)","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_original","is_error":false,"content":"loaded"}]}}"#,
+    ].joined(separator: "\n") + "\n"
+  }
+  // The resumed file sorts first, so the original must still win on time and conversation.
+  try session("resumed", at: "2026-10-29T05:00:00.000Z").write(
+    to: project.appendingPathComponent("a-resumed.jsonl"), atomically: true, encoding: .utf8)
+  try session("original", at: "2026-10-27T01:00:00.000Z").write(
+    to: project.appendingPathComponent("b-original.jsonl"), atomically: true, encoding: .utf8)
+  let store = try UsageStore(directory: root.appendingPathComponent("db"))
+  let snapshot = try await ImportCoordinator(home: home, store: store).scan()
+  #expect(snapshot.events.count == 1)
+  let event = try #require(snapshot.events.first)
+  #expect(event.outcome == .success)
+  #expect(event.time == Dates.parse("2026-10-27T01:00:00.000Z"))
+  #expect(event.session == "original")
+  #expect(event.source.hasSuffix("b-original.jsonl"))
+  #expect(UsageMetrics.rows(snapshot).first?.conversations == 1)
+}
+@Test func eventIDChangeReparsesExistingFilesAndKeepsEventsOfDeletedFiles() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let home = root.appendingPathComponent("home")
+  let skillDir = home.appendingPathComponent(".agents/skills/clean-code")
+  let project = home.appendingPathComponent(".claude/projects/project")
+  for path in [skillDir, project] {
+    try FileManager.default.createDirectory(at: path, withIntermediateDirectories: true)
+  }
+  try "# Clean code\nInstructions".write(
+    to: skillDir.appendingPathComponent("SKILL.md"), atomically: true, encoding: .utf8)
+  let log = project.appendingPathComponent("session.jsonl")
+  try (#"{"entrypoint":"claude-desktop","sessionId":"s","timestamp":"2026-10-27T01:00:00.000Z","message":{"content":[{"type":"tool_use","name":"Skill","id":"toolu_1","input":{"skill":"clean-code"}}]}}"#
+    + "\n").write(to: log, atomically: true, encoding: .utf8)
+  let skill = Skill(DiscoveredSkill(path: skillDir.path, aliases: [skillDir.path]), now: Date())
+  var stale = usage(skill, at: Date(), group: "old-id")
+  stale.platform = .claudeDesktop
+  stale.source = log.path
+  var deleted = usage(skill, at: Date(), group: "deleted-file")
+  deleted.platform = .claudeDesktop
+  var before = Snapshot()
+  before.skills = [skill]
+  before.events = [stale, deleted]
+  var checkpoint = Checkpoint()
+  checkpoint.state.parserRevision = 2
+  let path = try #require(
+    ImportCoordinator.files(home.appendingPathComponent(".claude/projects"), extension: "jsonl")
+      .first
+  ).path
+  stale.source = path
+  stale.line = 1
+  stale.target = "clean-code"
+  before.events = [stale, deleted]
+  let store = try UsageStore(directory: root.appendingPathComponent("db"))
+  try await store.save(before, checkpoints: [path: checkpoint])
+  let importer = ImportCoordinator(home: home, store: store)
+  let first = try await importer.scan()
+  #expect(!first.events.contains { $0.id == stale.id })
+  // The call has no result in the file, but its earlier confirmed outcome is kept.
+  #expect(first.events.first { $0.source == path }?.outcome == .success)
+  #expect(first.events.contains { $0.id == deleted.id })
+  #expect(first.events.count == 2)
+  #expect(try await importer.scan().events.count == 2)
 }

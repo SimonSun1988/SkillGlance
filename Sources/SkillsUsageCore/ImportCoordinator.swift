@@ -17,6 +17,14 @@ public actor ImportCoordinator {
     var snapshot = try await store.load()
     let previousSources = snapshot.sources
     var checkpoints = rebuild ? [:] : try await store.checkpoints()
+    if snapshot.eventIDRevision != Self.eventIDRevision {
+      // Event IDs changed. Claude Code files are read in full on every scan, so their old
+      // events can go now. Checkpointed files replace their events when they are replayed.
+      snapshot.events.removeAll {
+        $0.platform == .claudeCode && FileManager.default.fileExists(atPath: $0.source)
+      }
+      snapshot.eventIDRevision = Self.eventIDRevision
+    }
     var events = Dictionary(snapshot.events.map { ($0.id, $0) }, uniquingKeysWith: { _, b in b })
     if rebuild {
       events = [:]
@@ -121,7 +129,14 @@ public actor ImportCoordinator {
             Self.addNotice("紀錄輪替、截斷或改寫：\(platform.label)，已重新讀取該檔案", to: &snapshot)
           }
           // Replay old parser checkpoints without rebuilding statistics or observation periods.
+          // The file's events are parsed again under current IDs. An outcome that was confirmed
+          // against the Skill file of that time is kept, because that file may have changed.
+          var confirmedBefore: [String: UsageEvent] = [:]
           if checkpoint.state.parserRevision < ParseState.currentRevision {
+            for (id, old) in events where old.platform == platform && old.source == file.path {
+              events[id] = nil
+              if old.outcome != .unknown { confirmedBefore[Self.recordKey(old)] = old }
+            }
             checkpoint = Checkpoint()
           }
           let linkedDesktop = desktopIDs.contains(file.deletingPathExtension().lastPathComponent)
@@ -176,6 +191,17 @@ public actor ImportCoordinator {
               if Self.merge(event, into: &events) {
                 Self.addNotice("同一事件存在互相衝突的結果", to: &snapshot)
               }
+            }
+          }
+          if !confirmedBefore.isEmpty {
+            for (id, event) in events where event.source == file.path {
+              guard let old = confirmedBefore[Self.recordKey(event)], event.conflicted != true,
+                event.outcome == .unknown
+                  || (old.confirmed && !event.confirmed && old.outcome == event.outcome)
+              else { continue }
+              events[id]?.outcome = old.outcome
+              events[id]?.confirmed = old.confirmed
+              events[id]?.scope = old.scope
             }
           }
           checkpoint.anchor = try JSONLReader.anchor(file, offset: checkpoint.offset)
@@ -369,6 +395,11 @@ public actor ImportCoordinator {
     if !(snapshot.notices ?? []).contains(text) { snapshot.notices = (snapshot.notices ?? []) + [text] }
   }
   // Returns true when the copies disagree; the event then stays unknown and unattributed.
+  static let eventIDRevision = 2
+  // Identifies one parsed record of a file across parser revisions.
+  static func recordKey(_ event: UsageEvent) -> String {
+    "\(event.line)|\(event.target)|\(event.evidence.rawValue)"
+  }
   static func merge(_ incoming: UsageEvent, into events: inout [String: UsageEvent]) -> Bool {
     var event = incoming
     guard var old = events[event.id] else {
@@ -381,6 +412,23 @@ public actor ImportCoordinator {
       events[event.id] = old
     } else if event.time == epoch {
       event.time = old.time
+    }
+    // The earliest copy is the original; later copies come from resumed sessions.
+    if old.time != epoch && old.time < event.time {
+      event.time = old.time
+      event.session = old.session
+      event.group = old.group
+      event.cwd = old.cwd
+      event.source = old.source
+      event.line = old.line
+    } else if event.time < old.time {
+      old.time = event.time
+      old.session = event.session
+      old.group = event.group
+      old.cwd = event.cwd
+      old.source = event.source
+      old.line = event.line
+      events[event.id] = old
     }
     if old.conflicted == true { return false }
     if old.outcome != .unknown

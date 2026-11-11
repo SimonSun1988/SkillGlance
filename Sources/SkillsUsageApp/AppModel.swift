@@ -14,6 +14,10 @@ import SwiftUI
   // User-installed Skills over the fixed 90-day removal window, independent of filters.
   @Published private(set) var userSkills = 0
   @Published private(set) var unusedUserSkills = 0
+  // User-installed Skills with confirmed use under the current filters.
+  @Published private(set) var activeUserSkills = 0
+  @Published private(set) var externalRows: [ExternalRow] = []
+  @Published private(set) var externalCount = 0
   // User-installed Skills that removal assessment applies to, with untranslated reasons.
   @Published private(set) var assessment: [UsageRow] = []
   @Published var scanning = false { didSet { updateRows() } }
@@ -84,7 +88,15 @@ import SwiftUI
     userSkills = user.count
     unusedUserSkills = user.filter { $0.conversations == 0 }.count
     candidateCount = scanning ? 0 : eligibility.values.filter(\.0).count
-    rows = UsageMetrics.rows(filtered, since: since, platform: platform).map { row in
+    let all = UsageMetrics.rows(filtered, since: since, platform: platform)
+    activeUserSkills = all.filter {
+      $0.skill.installed && !$0.skill.managed && !$0.skill.cacheOnly && $0.conversations > 0
+    }.count
+    externalCount = UsageMetrics.external(snapshot).count
+    externalRows = UsageMetrics.external(filtered, since: since, platform: platform).filter {
+      search.isEmpty || $0.name.localizedCaseInsensitiveContains(search)
+    }
+    rows = all.map { row in
       var row = row
       row.candidate = !scanning && (eligibility[row.id]?.0 ?? false)
       row.reason = L10n.message(scanning ? "掃描中，暫停評估" : eligibility[row.id]?.1 ?? "")
@@ -204,13 +216,14 @@ import SwiftUI
   }
 }
 enum Page: String, CaseIterable, Identifiable {
-  case skills, protected, candidates, sources
+  case skills, protected, candidates, external, sources
   var id: Self { self }
   var title: String {
     switch self {
     case .skills: L10n.text("所有 Skills")
     case .protected: L10n.text("保護中")
     case .candidates: L10n.text("移除建議")
+    case .external: L10n.text("內建／外部")
     case .sources: L10n.text("資料來源")
     }
   }
@@ -219,6 +232,7 @@ enum Page: String, CaseIterable, Identifiable {
     case .skills: "square.grid.2x2"
     case .protected: "shield"
     case .candidates: "archivebox"
+    case .external: "puzzlepiece.extension"
     case .sources: "externaldrive"
     }
   }

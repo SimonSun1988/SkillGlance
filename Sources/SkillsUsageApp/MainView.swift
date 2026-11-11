@@ -108,6 +108,7 @@ struct Sidebar: View {
         row(.skills, count: skills.count)
         row(.protected, count: skills.filter { $0.important || $0.managed }.count)
         row(.candidates, count: model.candidateCount)
+        row(.external, count: model.externalCount)
       }
       Section(L10n.text("資料")) {
         HStack {
@@ -184,15 +185,27 @@ struct SkillsView: View {
           Text(L10n.text("全部")).tag(0)
         }.labelsHidden().pickerStyle(.segmented).frame(width: 240)
       }
-      HStack(spacing: 44) {
-        Figure(value: model.summary.activeSkills, title: L10n.text("使用中的 Skills"))
-        Figure(value: model.summary.conversations, title: L10n.text("活躍對話"))
-        Figure(value: model.summary.invocations, title: L10n.text("呼叫"))
-        Figure(value: model.summary.reads, title: L10n.text("確認讀取"))
+      if model.page != .external {
+        HStack(spacing: 44) {
+          Figure(value: model.activeUserSkills, title: L10n.text("使用中的 Skills"))
+          Figure(value: model.summary.conversations, title: L10n.text("活躍對話"))
+          Figure(value: model.summary.invocations, title: L10n.text("呼叫"))
+          Figure(value: model.summary.reads, title: L10n.text("確認讀取"))
+        }
       }
       filters
       PauseNotice()
-      if rows.isEmpty {
+      if model.page == .external {
+        if model.externalRows.isEmpty {
+          ContentUnavailableView(
+            L10n.text("目前沒有符合的 Skills"), systemImage: "magnifyingglass",
+            description: Text(L10n.text("等待匯入完成，或調整搜尋條件。"))
+          ).frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+          externalTable
+          Text(L10n.format("%lld Skills", model.externalRows.count)).foregroundStyle(Color.muted)
+        }
+      } else if rows.isEmpty {
         ContentUnavailableView(
           L10n.text("目前沒有符合的 Skills"), systemImage: "magnifyingglass",
           description: Text(L10n.text("等待匯入完成，或調整搜尋條件。"))
@@ -208,6 +221,8 @@ struct SkillsView: View {
     switch model.page {
     case .protected:
       L10n.format("%lld 個 Skill 受到保護，不會列入移除建議。", rows.count)
+    case .external:
+      L10n.format("%lld 個不在這台 Mac 上的 Skill 有使用紀錄，例如工具內建的 Skill。它們不列入移除建議。", model.externalRows.count)
     default:
       model.userSkills == 0
         ? L10n.text("尚未找到你安裝的 Skill。")
@@ -224,12 +239,14 @@ struct SkillsView: View {
       HStack(spacing: 10) {
         TextField(L10n.text("搜尋 Skills"), text: $model.search).textFieldStyle(.roundedBorder)
           .frame(width: 220)
-        Picker(L10n.text("安裝範圍"), selection: $model.catalogScope) {
-          Text(L10n.text("全部項目")).tag("all")
-          Text(L10n.text("目前安裝")).tag("installed")
-          Text(L10n.text("歷史項目")).tag("history")
-          Text(L10n.text("Plugin 快取")).tag("cache")
-        }.labelsHidden().frame(width: 140)
+        if model.page != .external {
+          Picker(L10n.text("安裝範圍"), selection: $model.catalogScope) {
+            Text(L10n.text("全部項目")).tag("all")
+            Text(L10n.text("目前安裝")).tag("installed")
+            Text(L10n.text("歷史項目")).tag("history")
+            Text(L10n.text("Plugin 快取")).tag("cache")
+          }.labelsHidden().frame(width: 140)
+        }
         Spacer()
         Picker(L10n.text("工具"), selection: $model.platform) {
           Text(L10n.text("所有工具")).tag(Platform?.none)
@@ -292,6 +309,34 @@ struct SkillsView: View {
       }.width(min: 70, ideal: 90)
     }.tableStyle(.inset(alternatesRowBackgrounds: false))
       .onChange(of: model.selection) { _, value in model.showDetail = value != nil }
+  }
+
+  private var externalTable: some View {
+    let peak = max(model.externalRows.map(\.conversations).max() ?? 1, 1)
+    return Table(model.externalRows) {
+      TableColumn("Skill") { Text($0.name).fontWeight(.medium).lineLimit(1) }
+        .width(min: 200, ideal: 300)
+      TableColumn(L10n.text("活躍度")) { row in
+        ActivityBar(fraction: Double(row.conversations) / Double(peak))
+          .accessibilityLabel(L10n.format("%lld 個對話", row.conversations))
+      }.width(min: 70, ideal: 120)
+      TableColumn(L10n.text("對話")) { Text($0.conversations, format: .number).monospacedDigit() }
+        .width(52).alignment(.trailing)
+      TableColumn(L10n.text("呼叫")) { Text($0.invocations, format: .number).monospacedDigit() }
+        .width(52).alignment(.trailing)
+      TableColumn(L10n.text("讀取")) { Text($0.reads, format: .number).monospacedDigit() }
+        .width(52).alignment(.trailing)
+      TableColumn(L10n.text("歸屬訊號")) { Text($0.signals, format: .number).monospacedDigit() }
+        .width(80).alignment(.trailing)
+      TableColumn(L10n.text("最近紀錄")) { row in
+        if let date = row.lastSeen {
+          Text(date, format: Date.RelativeFormatStyle(presentation: .numeric))
+            .foregroundStyle(Color.muted)
+        } else {
+          Text("—").foregroundStyle(.tertiary)
+        }
+      }.width(min: 90, ideal: 120)
+    }.tableStyle(.inset(alternatesRowBackgrounds: false))
   }
 
   private func tag(_ skill: Skill) -> String? {

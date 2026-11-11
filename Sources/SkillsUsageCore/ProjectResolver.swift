@@ -52,6 +52,12 @@ public enum ProjectResolver {
     }) {
       return ProjectLocation(repository: root, worktree: root)
     }
-    return nil
+    // Without a repository, the working folder itself is the project. The home folder and
+    // app data folders are too broad or too internal to name a project.
+    let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path
+    guard current.path != "/", current.path != home,
+      !current.path.hasPrefix(home + "/Library/")
+    else { return nil }
+    return ProjectLocation(repository: current.path, worktree: current.path)
   }
 }

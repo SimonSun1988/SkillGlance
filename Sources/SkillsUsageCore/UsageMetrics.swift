@@ -36,7 +36,7 @@ public enum UsageMetrics {
           || ($0.evidence == .read && $0.confirmed)
       }
       var row = UsageRow(skill: skill)
-      row.invocations = visible.filter { $0.evidence == .invocation }.count
+      row.invocations = visible.filter { $0.evidence == .invocation && $0.outcome == .success }.count
       row.reads = visible.filter { $0.evidence == .read && $0.confirmed }.count
       row.conversations = Set(active.map { "\($0.platform.rawValue)|\($0.group)" }).count
       row.days = Set(active.map { Calendar.current.startOfDay(for: $0.time) }).count
@@ -99,9 +99,49 @@ extension UsageMetrics {
         || ($0.evidence == .read && $0.confirmed)
     }
     return UsageSummary(
-      invocations: events.filter { $0.evidence == .invocation }.count,
+      invocations: events.filter { $0.evidence == .invocation && $0.outcome == .success }.count,
       reads: events.filter { $0.evidence == .read && $0.confirmed }.count,
       conversations: Set(active.map { "\($0.platform.rawValue)|\($0.group)" }).count,
       activeSkills: Set(active.compactMap(\.skillID)).count)
+  }
+}
+
+// A Skill that tools used but that is not installed on this Mac, such as a built-in Skill.
+public struct ExternalRow: Identifiable, Sendable {
+  public let name: String
+  public var id: String { name }
+  public var invocations = 0
+  public var reads = 0
+  public var conversations = 0
+  public var signals = 0
+  public var lastSeen: Date?
+}
+extension UsageMetrics {
+  public static func external(
+    _ snapshot: Snapshot, since: Date = .distantPast, platform: Platform? = nil
+  ) -> [ExternalRow] {
+    let known = Set(snapshot.skills.flatMap { SkillIdentity.names($0) })
+    let events = snapshot.events.filter {
+      $0.skillID == nil && $0.time >= since && (platform == nil || $0.platform == platform)
+    }
+    return Dictionary(grouping: events) { SkillIdentity.shortName($0.target) }
+      .filter { !known.contains($0.key) && !$0.key.isEmpty }
+      .map { name, events in
+        let active = events.filter {
+          ($0.evidence == .invocation && $0.outcome == .success)
+            || ($0.evidence == .read && $0.confirmed)
+        }
+        var row = ExternalRow(name: name)
+        row.invocations = active.filter { $0.evidence == .invocation }.count
+        row.reads = active.filter { $0.evidence == .read }.count
+        row.conversations = Set(active.map { "\($0.platform.rawValue)|\($0.group)" }).count
+        row.signals = events.filter { $0.evidence == .context }.count
+        row.lastSeen = events.map(\.time).max()
+        return row
+      }.sorted {
+        if $0.conversations != $1.conversations { return $0.conversations > $1.conversations }
+        if $0.signals != $1.signals { return $0.signals > $1.signals }
+        return $0.name < $1.name
+      }
   }
 }

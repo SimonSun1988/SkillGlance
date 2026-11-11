@@ -38,7 +38,8 @@ func usage(
     usage(skill, at: now, group: "c", outcome: .failure),
   ]
   let row = UsageMetrics.rows(snapshot, now: now).first
-  #expect(row?.invocations == 3)
+  // A failed call is counted as a failure, not as a call.
+  #expect(row?.invocations == 2)
   #expect(row?.reads == 1)
   #expect(row?.conversations == 2)
   #expect(row?.days == 1)
@@ -157,4 +158,39 @@ private func candidates(_ snapshot: Snapshot, now: Date) -> [String: Bool] {
   #expect(candidates(snapshot, now: now) == ["clean-code": true, "other": true])
   snapshot.issues = ["global"]
   #expect(candidates(snapshot, now: now) == ["clean-code": false, "other": false])
+}
+
+@Test func externalRowsListOnlySkillsThatAreNotInTheCatalog() {
+  let skill = fixtureSkill()
+  let now = Date(timeIntervalSince1970: 1_800_000_000)
+  func unresolved(_ target: String, _ evidence: Evidence, group: String, outcome: Outcome = .success)
+    -> UsageEvent
+  {
+    var event = usage(skill, at: now, group: group, evidence: evidence, outcome: outcome)
+    event.skillID = nil
+    event.target = target
+    return event
+  }
+  var snapshot = Snapshot()
+  snapshot.skills = [skill]
+  snapshot.events = [
+    usage(skill, at: now, group: "known"),
+    unresolved("anthropic-skills:pdf", .invocation, group: "a"),
+    unresolved("/plugins/x/skills/pdf/SKILL.md", .read, group: "a"),
+    unresolved("pdf", .context, group: "b", outcome: .unknown),
+    unresolved("pdf", .invocation, group: "c", outcome: .failure),
+    unresolved("simplify", .context, group: "d", outcome: .unknown),
+    // Shares its name with a catalog Skill, so it is ambiguous, not external.
+    unresolved("plugin:clean-code", .invocation, group: "e"),
+  ]
+  let rows = UsageMetrics.external(snapshot)
+  #expect(rows.map(\.name) == ["pdf", "simplify"])
+  #expect(rows[0].invocations == 1)
+  #expect(rows[0].reads == 1)
+  #expect(rows[0].conversations == 1)
+  #expect(rows[0].signals == 1)
+  #expect(rows[1].signals == 1)
+  #expect(rows[1].conversations == 0)
+  #expect(UsageMetrics.external(snapshot, since: now.addingTimeInterval(1)).isEmpty)
+  #expect(UsageMetrics.external(snapshot, platform: .cursor).isEmpty)
 }
